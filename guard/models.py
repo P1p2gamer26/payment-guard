@@ -80,3 +80,25 @@ class ArenaRun(models.Model):
     por_categoria = models.JSONField(default=dict)
     ejemplos = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Event(models.Model):
+    KIND_CHOICES = [
+        ("decision", "Decisión"),
+        ("aprobacion", "Aprobación"),
+        ("rechazo", "Rechazo"),
+        ("correccion", "Corrección"),
+        ("arena", "Arena"),
+        ("prueba", "Prueba"),
+    ]
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    invoice_id = models.CharField(max_length=16, blank=True)
+    outcome = models.CharField(max_length=10, blank=True)
+    rule = models.CharField(max_length=32, blank=True)
+    amount_usd = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    message = models.CharField(max_length=240, blank=True)
+    policy_version = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"[{self.kind}] {self.invoice_id or '—'} {self.outcome or self.message}"

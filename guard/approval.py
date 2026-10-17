@@ -7,7 +7,7 @@ from django.db import transaction
 from . import receipt as rcpt
 from .domain import Policy
 from .models import Approval, DecisionRecord, PolicyVersion
-from .services import spent_usd
+from .services import emit, spent_usd
 
 CENT = Decimal("0.01")
 RAILS = {"US": "ACH", "CO": "BRE_B", "MX": "SPEI"}
@@ -99,6 +99,8 @@ def approve(record: DecisionRecord, approver: str, note: str, receipt: dict | No
             decision=record, outcome="APROBADO", note=note.strip(), approver=approver, draft=draft
         )
         rcpt.consume(receipt)
+    emit("aprobacion", invoice_id=record.invoice.invoice_id, outcome="APROBADO",
+         amount_usd=record.amount_usd, policy_version=pv.version)
     return draft
 
 
@@ -106,6 +108,9 @@ def reject(record: DecisionRecord, approver: str, note: str) -> Approval:
     _require_escalable(record)
     _require_note(note)
     _require_other_person(record, approver)
-    return Approval.objects.create(
+    ap = Approval.objects.create(
         decision=record, outcome="RECHAZADO", note=note.strip(), approver=approver
     )
+    emit("rechazo", invoice_id=record.invoice.invoice_id, outcome="RECHAZADO",
+         amount_usd=record.amount_usd, policy_version=record.policy_version.version)
+    return ap

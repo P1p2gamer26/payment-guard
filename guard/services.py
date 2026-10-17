@@ -12,7 +12,7 @@ from .domain import Extraction, Policy
 from .engine import Decision, Ledger, decide, find_beneficiary
 from .explain import explain
 from . import arena
-from .models import Approval, ArenaRun, DecisionRecord, ExtractionCorrection, Invoice, PolicyVersion, UsedNonce
+from .models import Approval, ArenaRun, DecisionRecord, Event, ExtractionCorrection, Invoice, PolicyVersion, UsedNonce
 from .receipt import sign
 from .extractor import extract, is_suspicious
 from .second_read import read_total
@@ -61,6 +61,69 @@ def _serialize_second_read(sr) -> list | None:
     return [str(sr[0]), sr[1]]
 
 
+def emit(kind: str, **campos) -> "Event":
+    """Registra un evento de auditoría; ignora errores para no romper el flujo principal."""
+    try:
+        return Event.objects.create(kind=kind, **campos)
+    except Exception:
+        pass
+
+
+def process_next(pv: PolicyVersion) -> "DecisionRecord | None":
+    """Decide la SIGUIENTE factura sin DecisionRecord en pv; retorna None si ya están todas."""
+    policy = Policy(pv.raw, pv.version)
+    # facturas ya decididas en esta política
+    done_ids = set(
+        DecisionRecord.objects.filter(policy_version=pv)
+        .values_list("invoice__invoice_id", flat=True)
+    )
+    # próxima factura en orden
+    all_invoices = load_invoices()
+    inv = next((i for i in all_invoices if i.invoice_id not in done_ids), None)
+    if inv is None:
+        return None
+
+    # reconstruir ledger con los PAGAR ya guardados en pv
+    pagados = (
+        DecisionRecord.objects.filter(policy_version=pv, outcome="PAGAR")
+        .order_by("invoice__invoice_id")
+        .select_related("invoice")
+    )
+    paid_xs = [Extraction.from_dict(r.invoice.extraction) for r in pagados if r.invoice.extraction]
+    gastado = sum((r.amount_usd for r in pagados if r.amount_usd is not None), Decimal("0"))
+    # escaladas pendientes cuentan para anti-fraccionamiento, igual que en process_all
+    seen = [Extraction.from_dict(r.invoice.extraction) for r in DecisionRecord.objects.filter(
+        policy_version=pv, outcome="ESCALAR").select_related("invoice") if r.invoice.extraction]
+    ledger = Ledger(policy.period_budget_remaining_usd - gastado, paid_xs, seen)
+
+    x = extract(inv.text, mode=settings.DECISION_MODE)
+    b = find_beneficiary(x, policy)
+    x = dataclasses.replace(x, invoice_id=inv.invoice_id, beneficiary_id=b and b["id"],
+                            suspicious=x.suspicious or is_suspicious(inv.text, policy.normalizar_unicode))
+    sr = read_total(inv.text)
+    d = decide(x, policy, ledger, second_read=sr)
+
+    inv.extraction = _serialize_extraction(x)
+    inv.save(update_fields=["extraction"])
+    rec, _ = DecisionRecord.objects.update_or_create(
+        invoice=inv,
+        policy_version=pv,
+        defaults={
+            "outcome": d.outcome,
+            "rule": d.rule,
+            "amount_usd": d.amount_usd,
+            "facts": d.facts,
+            "explanation": explain(d, x),
+            "second_read": _serialize_second_read(sr),
+        },
+    )
+    rec.receipt = sign(rec)
+    rec.save(update_fields=["receipt"])
+    emit("decision", invoice_id=inv.invoice_id, outcome=d.outcome, rule=d.rule,
+         amount_usd=d.amount_usd, policy_version=pv.version)
+    return rec
+
+
 def process_all(pv: PolicyVersion) -> list[DecisionRecord]:
     policy = Policy(pv.raw, pv.version)
     ledger = Ledger(policy.period_budget_remaining_usd, [])
@@ -94,6 +157,8 @@ def process_all(pv: PolicyVersion) -> list[DecisionRecord]:
         rec.receipt = sign(rec)
         rec.save(update_fields=["receipt"])
         records.append(rec)
+        emit("decision", invoice_id=inv.invoice_id, outcome=d.outcome, rule=d.rule,
+             amount_usd=d.amount_usd, policy_version=pv.version)
     records.sort(key=lambda r: r.invoice.invoice_id)
     return records
 
@@ -231,6 +296,9 @@ def correct_field(invoice_id: str, field: str, value: str, actor: str, reason: s
         UsedNonce.objects.get_or_create(nonce=rec.receipt["nonce"])
     rec.receipt = sign(rec)
     rec.save(update_fields=["receipt"])
+    emit("correccion", invoice_id=invoice_id, outcome=rec.outcome, rule=rec.rule,
+         amount_usd=rec.amount_usd, message=f"{field}: «{viejo}» → «{nuevo}»",
+         policy_version=pv.version)
     return rec
 
 
@@ -260,5 +328,8 @@ def apply_mandato_v2() -> PolicyVersion:
 
 def run_arena(pv: PolicyVersion) -> ArenaRun:
     r = arena.run(Policy(pv.raw, pv.version))
-    return ArenaRun.objects.create(policy_version=pv, total=r.total, indebidos=r.indebidos,
-                                   por_categoria=r.por_categoria, ejemplos=r.ejemplos)
+    run = ArenaRun.objects.create(policy_version=pv, total=r.total, indebidos=r.indebidos,
+                                  por_categoria=r.por_categoria, ejemplos=r.ejemplos)
+    emit("arena", policy_version=pv.version,
+         message=f"Arena: {r.indebidos} indebidos de {r.total} (v{pv.version})")
+    return run

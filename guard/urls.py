@@ -16,4 +16,7 @@ urlpatterns = [
     path("registro/", views.log, name="log"),
     path("demo/reiniciar/", views.reset_demo, name="reset_demo"),
     path("api/evaluate", views.api_evaluate, name="api_evaluate"),
+    path("api/eventos", views.api_eventos, name="api_eventos"),
+    path("demo/en-vivo/", views.demo_en_vivo, name="demo_en_vivo"),
+    path("demo/en-vivo/siguiente/", views.demo_en_vivo_siguiente, name="demo_en_vivo_siguiente"),
 ]

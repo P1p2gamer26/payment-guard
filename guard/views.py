@@ -20,8 +20,8 @@ from .engine import Ledger, allowed_to_pay
 from .explain import explain
 from . import receipt as rcpt
 from . import ui
-from .models import Approval, DecisionRecord, Invoice, PolicyVersion, UsedNonce
-from .services import apply_mandato_v2, correct_field, current_policy, run_arena, ensure_receipts, process_all, process_text, save_policy, spent_usd
+from .models import Approval, DecisionRecord, Event, Invoice, PolicyVersion, UsedNonce
+from .services import apply_mandato_v2, correct_field, current_policy, emit, run_arena, ensure_receipts, process_all, process_next, process_text, save_policy, spent_usd
 
 DECISIONES = ("PAGAR", "FRENAR", "ESCALAR")
 ISO3 = re.compile(r"^[A-Za-z]{3}$")
@@ -546,6 +546,8 @@ def api_evaluate(request):
     if not isinstance(text, str) or not text.strip():
         return JsonResponse({"error": "text debe ser una cadena no vacia"}, status=400)
     d = process_text(text, "api")
+    emit("prueba", invoice_id="api", outcome=d.outcome, rule=d.rule,
+         amount_usd=d.amount_usd, policy_version=current_policy().version)
     return JsonResponse(
         {
             "outcome": d.outcome,
@@ -556,3 +558,91 @@ def api_evaluate(request):
             "facts": d.facts,
         }
     )
+
+
+def _kpis(pv: PolicyVersion) -> dict:
+    """KPIs de la política actual para /api/eventos."""
+    policy = Policy(pv.raw, pv.version)
+    records = _records(pv)
+    counts = {d: sum(1 for r in records if r.outcome == d) for d in DECISIONES}
+    total = len(records)
+    autonomia = round((counts["PAGAR"] + counts["FRENAR"]) / total * 100) if total else 0
+    restante = policy.period_budget_remaining_usd - spent_usd(pv)
+    return {
+        "pagar": counts["PAGAR"],
+        "frenar": counts["FRENAR"],
+        "escalar": counts["ESCALAR"],
+        "autonomia_pct": autonomia,
+        "indebidos": _pagos_indebidos(records, policy),
+        "restante_usd": str(restante),
+        "policy_version": pv.version,
+    }
+
+
+def api_eventos(request):
+    """GET /api/eventos?after=<id> -> {events:[...], kpis:{...}}"""
+    after = request.GET.get("after", "0")
+    try:
+        after_id = int(after)
+    except (ValueError, TypeError):
+        after_id = 0
+    pv = current_policy()
+    qs = (
+        Event.objects.filter(id__gt=after_id)
+        .order_by("id")[:50]
+    )
+    events = [
+        {
+            "id": e.id,
+            "kind": e.kind,
+            "invoice_id": e.invoice_id,
+            "outcome": e.outcome,
+            "rule": e.rule,
+            "amount_usd": str(e.amount_usd) if e.amount_usd is not None else None,
+            "message": e.message,
+            "created_at": e.created_at.isoformat(),
+        }
+        for e in qs
+    ]
+    return JsonResponse({"events": events, "kpis": _kpis(pv)})
+
+
+@require_POST
+def demo_en_vivo(request):
+    """POST /demo/en-vivo/ -> guarda la política actual sin procesar y redirige a '/'."""
+    pv = current_policy()
+    save_policy(pv.raw)
+    return redirect("/")
+
+
+@require_POST
+def demo_en_vivo_siguiente(request):
+    """POST /demo/en-vivo/siguiente/ -> procesa la siguiente factura; retorna JSON {done, event}."""
+    pv = current_policy()
+    rec = process_next(pv)
+    if rec is None:
+        return JsonResponse({"done": True, "event": None})
+    # buscar el event recién emitido para esta factura y política
+    ev = (
+        Event.objects.filter(kind="decision", invoice_id=rec.invoice.invoice_id,
+                             policy_version=pv.version)
+        .order_by("-id")
+        .first()
+    )
+    event_data = None
+    if ev:
+        event_data = {
+            "id": ev.id,
+            "kind": ev.kind,
+            "invoice_id": ev.invoice_id,
+            "outcome": ev.outcome,
+            "rule": ev.rule,
+            "amount_usd": str(ev.amount_usd) if ev.amount_usd is not None else None,
+            "message": ev.message,
+            "created_at": ev.created_at.isoformat(),
+        }
+    # ¿quedan facturas por decidir?
+    done_count = DecisionRecord.objects.filter(policy_version=pv).count()
+    total_count = Invoice.objects.count()
+    done = done_count >= total_count
+    return JsonResponse({"done": done, "event": event_data})
