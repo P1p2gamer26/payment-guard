@@ -21,7 +21,7 @@ Agente que lee facturas de contratistas en LatAm y decide **PAGAR / FRENAR / ESC
 | Golden (25 facturas) | **25 / 25** decisiones esperadas (14 PAGAR / 6 FRENAR / 5 ESCALAR), **0** pagos indebidos |
 | Arena (415 ataques) — política v1 | **170** pagos indebidos (fraccionamiento 39, cuenta 17, inyección 7, unicode 62, duplicado 40, fecha 5) |
 | Arena (415 ataques) — política v2 | **0** pagos indebidos |
-| Tests | **51** (pytest) |
+| Tests | **69** (pytest) |
 
 Se reproduce con `./verify.sh` (modo `replay`, sin red). El verificador independiente `allowed_to_pay` re-chequea los límites duros sin usar el motor. Doble lectura (regex vs. LLM): coincide en 20/25, se abstiene en 5, **nunca contradice**.
 
@@ -151,6 +151,31 @@ Qué cierra v2: `R_FRACCIONAMIENTO` (suma del beneficiario en el mes, pagos y es
 ```
 
 En la app: tablero `/` -> «Correr arena»; `/reglas/` -> «Aplicar mandato v2», y volver a correr la arena.
+
+## Dónde se garantiza cada control
+
+| Control | Código | Test | Cómo verlo en la demo |
+|---|---|---|---|
+| Default-deny: guard/engine.py decide() (excepción -> ESCALAR R_ERROR) | guard/engine.py decide() (excepción -> ESCALAR R_ERROR) | tests/test_engine.py::test_exception_in_rule_escalates | cualquier factura rara termina en ESCALAR |
+| Doble llave LLM vs regex: guard/engine.py r_doble_lectura + guard/second_read.py | guard/engine.py r_doble_lectura + guard/second_read.py | tests/test_engine.py::test_misread_amount_escalates | KPI 'Doble lectura 20/25, 0 contradice' |
+| Cuenta del registro maestro: guard/approval.py approve() usa beneficiaries[...] | guard/approval.py approve() usa beneficiaries[...]['cuenta'] | tests/test_approval.py::test_approve_25_pays_master_account_not_new_one | factura 25: 'La factura pedía 000-FICT-9999' tachado |
+| Re-chequeo al aprobar (imprest) + presupuesto atómico: guard/approval.py (transaction.atomic + select_for_update) | guard/approval.py (transaction.atomic + select_for_update) | tests/test_approval.py::test_approve_rechecks_budget | aprobar la 19 -> 'presupuesto insuficiente' |
+| Recibo HMAC de un solo uso: guard/receipt.py verify() | guard/receipt.py verify() | tests/test_receipt.py | detalle -> 'Alterar monto' -> sello rojo |
+| Separación de funciones: guard/approval.py _require_other_person | guard/approval.py _require_other_person | tests/test_approval.py::test_requester_cannot_approve_own_request | aprobar como ap@lumbre.example -> bloqueado |
+| Montos Decimal, sin float: todo guard/ | todo guard/ | tests/test_no_float.py | — |
+| Casos límite exactos: guard/engine.py | guard/engine.py | tests/test_limits.py | — |
+| Inyección: guard/extractor.py is_suspicious + R_SOSPECHA | guard/extractor.py is_suspicious + R_SOSPECHA | tests/test_extractor.py, tests/test_views.py::test_api_injection_escalates | factura 24 |
+| Arena v1→v2: guard/arena.py | guard/arena.py | tests/test_arena.py | tablero -> 'Correr arena' |
+| Corrección humana re-evalúa: guard/services.py correct_field | guard/services.py correct_field | tests/test_corrections.py | detalle -> 'Corregir campo' |
+
+## Extractor: modelo propio vs base vs Claude
+
+| Extractor | Monto+moneda | Beneficiario (texto) | Beneficiario resuelto | Cuenta | Fecha | Total | Costo |
+| Qwen2.5-1.5B base | 96% | 64% | 80% | 68% | 88% | 79% | US$0 (CPU) |
+| Qwen2.5-1.5B afinado (propio) | 100% | 80% | 96% | 100% | 96% | 94% | US$0 (CPU, ~6 s/factura) |
+| Claude Sonnet 4.6 | 100% | 88% | — | 100% | 92% | 95% | por token |
+
+Con lecturas en vivo del modelo propio el motor decide 25/25 y 0 pagos indebidos (tests/test_pipeline_qwen.py). La demo pública reproduce esas lecturas.
 
 ## Recibo firmado
 
