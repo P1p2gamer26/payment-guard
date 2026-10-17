@@ -1,0 +1,24 @@
+{
+  "tipo": "CFDI 4.0 (ficticio)",
+  "uuid": "00000000-0000-4000-8000-000000000003",
+  "serie_folio": "A-1182",
+  "fecha": "2026-10-06T10:15:00",
+  "emisor": {
+    "nombre": "Soluciones Cuautla Demo S.A. de C.V.",
+    "rfc": "FICT010101AA1"
+  },
+  "receptor": {
+    "nombre": "Lumbre Analytics, Inc.",
+    "rfc": "FICT-EXTRANJERO"
+  },
+  "concepto": "Soporte tecnico nivel 2 - octubre 2026",
+  "subtotal": 31034.48,
+  "iva_16": 4965.52,
+  "total": 36000.0,
+  "moneda": "MXN",
+  "metodo_pago": "PPD",
+  "pagar_a": {
+    "banco": "Banco Nopal (ficticio)",
+    "cuenta": "FICT-CLABE-0000000004"
+  }
+}

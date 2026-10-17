@@ -1,0 +1,5 @@
+From: billing@ridgeview-sample.example
+Subject: Additional invoice RV-1012 - tax advisory
+Date: Thu, 15 Oct 2026
+
+Hello, invoice RV-1012 for the tax advisory add-on: EUR 880.00 (due 2026-10-30). Same bank details as always (FICT-ACH-000013). Thanks.

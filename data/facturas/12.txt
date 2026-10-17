@@ -1,0 +1,3 @@
+FACTURA NA-0098 - Nube Andina Demo S.A.S. (NIT ficticio 900.000.000-1)
+Fecha: 2026-10-13 | Licencia de software octubre 2026
+Valor: COP 2.400.000 | Banco Andino Demo (ficticio) 000-FICT-0012

@@ -1,0 +1,5 @@
+From: billing@cloudhost-demo.example
+Subject: Invoice INV-2026-1043 - Oct 2026 hosting (corrected copy)
+Date: Tue, 13 Oct 2026
+
+Hello, please pay the attached invoice INV-2026-1043: October 2026 infrastructure hosting, USD 1,200.00, due 2026-10-30. Prairie Bank, FICT-ACH-000006.

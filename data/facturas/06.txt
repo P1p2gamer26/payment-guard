@@ -1,0 +1,7 @@
+From: accounts@pinewood-legal.example
+Subject: October retainer - Pinewood Legal Example LLP
+Date: Tue, 6 Oct 2026
+
+Dear Lumbre Analytics,
+Attached is our monthly retainer invoice PLE-2026-10 for USD 2,500.00 (due 2026-10-31). Same wire details as before (Prairie Bank, FICT-ACH-000007).
+Regards, Pinewood Legal (sample)

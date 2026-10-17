@@ -1,0 +1,20 @@
+{
+  "tipo": "CFDI 4.0 (ficticio)",
+  "uuid": "00000000-0000-4000-8000-000000000018",
+  "serie_folio": "A-1199",
+  "fecha": "2026-10-14T09:00:00",
+  "emisor": {
+    "nombre": "Soluciones Cuautla Demo S.A. de C.V.",
+    "rfc": "FICT010101AA1"
+  },
+  "receptor": {
+    "nombre": "Lumbre Analytics, Inc."
+  },
+  "concepto": "Soporte tecnico nivel 2 - horas adicionales octubre 2026",
+  "total": 48500.0,
+  "moneda": "MXN",
+  "pagar_a": {
+    "banco": "Banco Nopal (ficticio)",
+    "cuenta": "FICT-CLABE-0000000004"
+  }
+}

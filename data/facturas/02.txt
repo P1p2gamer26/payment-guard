@@ -1,0 +1,8 @@
+CUENTA DE COBRO No. CC-0007
+Fecha: 2026-10-02
+Debo a: LUMBRE ANALYTICS, INC. (ficticia)
+Por concepto de: desarrollo backend, octubre de 2026
+Valor: $8.800.000 COP
+Beneficiaria: Camila Rojas Demo - C.C. 1.000.000.001 (ficticia)
+Banco Cafetal (ficticio) cuenta de ahorros 000-FICT-0001
+Persona natural no responsable de IVA. Sin IVA.

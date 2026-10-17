@@ -1,0 +1,5 @@
+From: billing@andes-recruiting.example
+Subject: Success fee - Senior Data Engineer placement
+Date: Wed, 14 Oct 2026
+
+Estimados, adjunto cuenta de cobro AR-0415 por honorarios de exito de la contratacion acordada: COP 16.000.000 (aprox. USD 4,000). Banco Andino Demo (ficticio) 000-FICT-0016. Atentamente, Andes Recruiting Demo S.A.S.

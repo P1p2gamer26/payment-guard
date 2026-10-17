@@ -1,0 +1,7 @@
+INVOICE #QMS-5521
+Quill Marketing Sample Inc. - 100 Example St, Springfield, US (fictitious)
+Bill to: Lumbre Analytics, Inc.
+Date: 2026-10-08   Terms: Net 15   Due: 2026-10-23
+Content marketing retainer - October 2026 ........ $1,800.00
+TOTAL DUE: USD 1,800.00
+Remit to: Prairie Bank (fictitious) FICT-ACH-000008

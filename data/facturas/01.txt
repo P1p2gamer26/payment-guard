@@ -1,0 +1,10 @@
+From: billing@cloudhost-demo.example
+To: finanzas@lumbre-analytics.example
+Subject: Invoice INV-2026-1031 - October 2026 hosting
+Date: Mon, 5 Oct 2026
+
+Hi team,
+Please find our invoice for October 2026 infrastructure hosting.
+Invoice: INV-2026-1031 | Amount: USD 1,200.00 | Due: 2026-10-30
+Pay to: Cloudhost Demo LLC - Prairie Bank (fictitious), acct FICT-ACH-000006
+Thanks, Cloudhost Demo billing (sample data)

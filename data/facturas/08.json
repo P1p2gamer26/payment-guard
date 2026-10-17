@@ -1,0 +1,20 @@
+{
+  "tipo": "CFDI 4.0 honorarios (ficticio)",
+  "uuid": "00000000-0000-4000-8000-000000000008",
+  "serie_folio": "H-0044",
+  "fecha": "2026-10-09T16:02:00",
+  "emisor": {
+    "nombre": "Mariana Ixtapa Prueba",
+    "rfc": "FICT020202BB2"
+  },
+  "receptor": {
+    "nombre": "Lumbre Analytics, Inc."
+  },
+  "concepto": "Servicios de QA - octubre 2026",
+  "total": 27000.0,
+  "moneda": "MXN",
+  "pagar_a": {
+    "banco": "Banco Nopal (ficticio)",
+    "cuenta": "FICT-CLABE-0000000005"
+  }
+}

@@ -1,0 +1,4 @@
+INVOICE KSA-2026-07
+Kestrel Security Audit Sample LLC (fictitious)
+Date: 2026-10-15 | Security audit (fixed-fee project, agreed USD 2,600.00)
+Total due: USD 2,600.00 | Prairie Bank (fictitious) FICT-ACH-000015
