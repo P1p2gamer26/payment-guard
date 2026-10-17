@@ -2,6 +2,9 @@
 from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.db import transaction
+
+from . import receipt as rcpt
 from .domain import Policy
 from .models import Approval, DecisionRecord
 from .services import spent_usd
@@ -26,7 +29,21 @@ def _extraction(record: DecisionRecord) -> dict:
     return record.invoice.extraction or {}
 
 
-def approve(record: DecisionRecord, approver: str, note: str) -> dict:
+def _check_receipt(record: DecisionRecord, receipt) -> dict:
+    stored = record.receipt
+    receipt = receipt or stored
+    if not receipt:
+        raise ValueError("no se puede aprobar: el registro no tiene recibo firmado")
+    ok, motivo = rcpt.verify(receipt)
+    if not ok:
+        if stored and isinstance(receipt, dict) and receipt.get("amount") != stored.get("amount")                 and motivo.startswith("Firma inválida"):
+            motivo = "Firma inválida: el monto no coincide con lo decidido"
+        raise ValueError(motivo)
+    return receipt
+
+
+def approve(record: DecisionRecord, approver: str, note: str, receipt: dict | None = None) -> dict:
+    receipt = _check_receipt(record, receipt)
     _require_escalable(record)
     _require_note(note)
     ex = _extraction(record)
@@ -50,6 +67,10 @@ def approve(record: DecisionRecord, approver: str, note: str) -> dict:
         raise ValueError(
             f"no se puede aprobar: presupuesto insuficiente; restan USD {restante} y se requieren USD {usd}"
         )
+    esperado = {"invoice_id": record.invoice.invoice_id, "amount": str(ex.get("amount")), "currency": currency,
+                "beneficiary_id": ben_id, "beneficiary_account": ben["cuenta"], "policy_version": pv.version}
+    if any(receipt.get(k) != v for k, v in esperado.items()):
+        raise ValueError("no se puede aprobar: el recibo no coincide con la factura y el registro maestro")
     draft = {
         "object": "transfer_draft",
         "status": "draft_not_executed",
@@ -62,11 +83,14 @@ def approve(record: DecisionRecord, approver: str, note: str) -> dict:
         "policy_version": pv.version,
         "approved_by": approver,
         "approval_note": note.strip(),
+        "receipt_sig": receipt["sig"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    Approval.objects.create(
-        decision=record, outcome="APROBADO", note=note.strip(), approver=approver, draft=draft
-    )
+    with transaction.atomic():
+        Approval.objects.create(
+            decision=record, outcome="APROBADO", note=note.strip(), approver=approver, draft=draft
+        )
+        rcpt.consume(receipt)
     return draft
 
 

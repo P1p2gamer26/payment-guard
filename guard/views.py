@@ -16,8 +16,9 @@ from .data import load_expected, load_policy
 from .domain import Extraction, Policy
 from .engine import RULES, Ledger, allowed_to_pay
 from .explain import explain
-from .models import Approval, DecisionRecord, Invoice, PolicyVersion
-from .services import current_policy, process_all, process_text, save_policy, spent_usd
+from . import receipt as rcpt
+from .models import Approval, DecisionRecord, Invoice, PolicyVersion, UsedNonce
+from .services import apply_mandato_v2, current_policy, run_arena, ensure_receipts, process_all, process_text, save_policy, spent_usd
 
 DECISIONES = ("PAGAR", "FRENAR", "ESCALAR")
 ISO3 = re.compile(r"^[A-Za-z]{3}$")
@@ -28,6 +29,7 @@ def ensure_processed() -> PolicyVersion:
     pv = current_policy()
     if not DecisionRecord.objects.filter(policy_version=pv).exists():
         process_all(pv)
+    ensure_receipts(pv)
     return pv
 
 
@@ -105,11 +107,12 @@ def board(request):
         "indebidos": _pagos_indebidos(records, policy),
         "coincide": coincide,
         "restante": policy.period_budget_remaining_usd - spent_usd(pv),
+        "arena": pv.arena_runs.order_by("-created_at", "-id").first(),
     }
     return render(request, "guard/board.html", ctx)
 
 
-def invoice_detail(request, invoice_id: str):
+def invoice_detail(request, invoice_id: str, tamper_error: str = ""):
     pv = ensure_processed()
     invoice = get_object_or_404(Invoice, invoice_id=invoice_id)
     record = (
@@ -126,11 +129,52 @@ def invoice_detail(request, invoice_id: str):
         "facts_json": json.dumps(record.facts, indent=2, ensure_ascii=False, default=str) if record else "",
         "second_read": record.second_read if record else None,
         "aprobacion": _aprobacion(record) if record else None,
+        "tamper_error": tamper_error,
     }
+    if record and record.receipt:
+        ok, motivo = rcpt.verify(record.receipt, check_nonce=False)
+        ctx.update(receipt=record.receipt, receipt_ok=ok, receipt_motivo=motivo,
+                   receipt_usado=UsedNonce.objects.filter(nonce=record.receipt.get("nonce")).exists())
     if record:
         a = _aprobacion(record)
         ctx["draft_json"] = json.dumps(a.draft, indent=2, ensure_ascii=False) if a and a.draft else ""
     return render(request, "guard/detail.html", ctx)
+
+
+@require_POST
+def correr_arena(request):
+    pv = ensure_processed()
+    r = run_arena(pv)
+    messages.success(request, f"Arena corrida: {r.indebidos} pagos indebidos de {r.total} ataques (política v{pv.version}).")
+    return redirect("board")
+
+
+@require_POST
+def aplicar_mandato_v2(request):
+    ensure_processed()
+    nueva = apply_mandato_v2()
+    messages.success(request, f"Mandato v2 aplicado como política v{nueva.version}; 25 facturas reprocesadas.")
+    return redirect("rules")
+
+
+@require_POST
+def tamper_receipt(request, invoice_id: str):
+    """Demo: intenta aprobar con el monto del recibo cambiado; el guardián debe rechazarlo."""
+    pv = ensure_processed()
+    record = get_object_or_404(DecisionRecord, invoice__invoice_id=invoice_id, policy_version=pv)
+    try:
+        nuevo = Decimal((request.POST.get("monto") or "1").strip())
+    except InvalidOperation:
+        messages.error(request, "Monto inválido.")
+        return redirect("invoice_detail", invoice_id=invoice_id)
+    if not record.receipt:
+        return redirect("invoice_detail", invoice_id=invoice_id)
+    alterado = {**record.receipt, "amount": str(nuevo)}
+    try:
+        approve(record, "demo@guardian", "demo alteración", receipt=alterado)
+    except ValueError as e:
+        return invoice_detail(request, invoice_id, tamper_error=str(e))
+    return redirect("invoice_detail", invoice_id=invoice_id)  # ponytail: inalcanzable salvo monto igual al decidido
 
 
 def _rule_path(record) -> list[dict]:

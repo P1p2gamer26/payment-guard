@@ -29,6 +29,7 @@ class DecisionRecord(models.Model):
     facts = models.JSONField(default=dict)
     explanation = models.TextField()
     second_read = models.JSONField(null=True, blank=True)
+    receipt = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -49,3 +50,17 @@ class Approval(models.Model):
 
     def __str__(self):
         return f"{self.decision} -> {self.outcome}"
+
+
+class UsedNonce(models.Model):
+    nonce = models.CharField(max_length=64, unique=True)
+    used_at = models.DateTimeField(auto_now_add=True)
+
+
+class ArenaRun(models.Model):
+    policy_version = models.ForeignKey(PolicyVersion, on_delete=models.CASCADE, related_name="arena_runs")
+    total = models.IntegerField()
+    indebidos = models.IntegerField()
+    por_categoria = models.JSONField(default=dict)
+    ejemplos = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)

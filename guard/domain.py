@@ -64,6 +64,14 @@ class Policy:
         return {k: Decimal(str(v)) for k, v in self._r["tipos_cambio_a_usd"].items()}
 
     @property
+    def anti_fraccionamiento(self) -> bool:
+        return bool(self._r.get("anti_fraccionamiento", False))  # mandato v2
+
+    @property
+    def normalizar_unicode(self) -> bool:
+        return bool(self._r.get("normalizar_unicode", False))  # mandato v2
+
+    @property
     def contract_tolerance_pct(self) -> Decimal:
         return Decimal(str(self._r["tolerancia_monto_contrato_pct"]))
 

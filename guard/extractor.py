@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import unicodedata
 import urllib.request
 from datetime import date
 from decimal import Decimal
@@ -35,6 +36,33 @@ _SUSPICIOUS_RE = re.compile(
     re.IGNORECASE,
 )
 _FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```\s*$", re.IGNORECASE | re.DOTALL)
+
+
+_HARD_PHRASES = (
+    "ignore", "ignora", "disregard", "desconsidere", "esqueca", "olvida", "systeminstruction",
+    "preapproved", "preaprobad", "preaprovad", "aprobadoporelcfo", "aprovadopelocfo", "markasapproved",
+    "marqueaprobad", "marquecomoaprovad", "pagueimediat", "paguesemrevis", "overrideall",
+    "sinrevision", "withoutreview", "instruccionalagente", "instrucaoparaoagente",
+)
+_AMBIG_DATE = re.compile(r"(?<!\d)(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?!\d)")
+
+
+_CONFUSABLES = str.maketrans('аеорсіухј', 'aeopciuxj')  # cirílico -> latino (subconjunto común)
+
+
+def is_suspicious(text: str, hardened: bool = False) -> bool:
+    """v1: regex simple. v2 (hardened): NFKC, sin invisibles ni espacios/puntuación, sin tildes, frases ES/EN/PT y fechas dd/mm ambiguas."""
+    if _SUSPICIOUS_RE.search(text):
+        return True
+    if not hardened:
+        return False
+    t = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", text)).casefold().translate(_CONFUSABLES)
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    compact = re.sub(r"[\W_]+", "", t)
+    if any(p in compact for p in _HARD_PHRASES):
+        return True
+    # ponytail: fecha dd/mm vs mm/dd ambigua -> una persona la confirma (reusa R_SOSPECHA)
+    return any(a != b and int(a) <= 12 and int(b) <= 12 for a, b, _ in _AMBIG_DATE.findall(text))
 
 
 def _empty(suspicious: bool = False) -> Extraction:
@@ -130,7 +158,7 @@ def _build_extraction(data: dict, suspicious: bool) -> Extraction:
 
 def extract(text: str, mode: str | None = None) -> Extraction:
     mode = mode or os.environ.get("DECISION_MODE", "replay")
-    suspicious = bool(_SUSPICIOUS_RE.search(text))
+    suspicious = is_suspicious(text)
     path = _cassette_path(text)
     raw = None
     if mode == "replay":

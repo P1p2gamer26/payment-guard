@@ -27,6 +27,12 @@
   <p class="form__nota">Guardar crea una versión nueva de la política y reprocesa las 25 facturas; las decisiones viejas conservan su versión.</p>
 </form>
 
+<form class="form" method="post" action="{% url 'aplicar_mandato_v2' %}">
+  {% csrf_token %}
+  <button type="submit">Aplicar mandato v2 (cierra huecos de la arena)</button>
+  <p class="form__nota">Activa anti-fraccionamiento y normalización unicode como política nueva y reprocesa.</p>
+</form>
+
 <section>
   <h2>Historial de versiones</h2>
   <ul class="versiones">

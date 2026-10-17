@@ -62,6 +62,32 @@
 </section>
 {% endif %}
 
+{% if receipt %}
+<section>
+  <h2>Recibo firmado</h2>
+  <p>
+    {% if receipt_ok %}<span class="stamp stamp--ok">Firma válida</span>{% else %}<span class="stamp stamp--bad">{{ receipt_motivo }}</span>{% endif %}
+    {% if receipt_usado %}· recibo consumido{% endif %}
+  </p>
+  <dl class="extraccion">
+    {% for k, v in receipt.items %}
+    <div class="extraccion__fila"><dt>{{ k }}</dt><dd>{{ v }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% if tamper_error %}<p><span class="stamp stamp--bad">{{ tamper_error }}</span></p>{% endif %}
+  {% if not aprobacion %}
+  <form class="form" method="post" action="{% url 'tamper_receipt' invoice.invoice_id %}">
+    {% csrf_token %}
+    <div class="form__campo">
+      <label for="monto">Demo: nuevo monto a inyectar en el recibo</label>
+      <input id="monto" name="monto" value="1" inputmode="decimal">
+    </div>
+    <button type="submit">Alterar monto</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
 {% if aprobacion %}
 <section>
   <h2>Aprobación humana</h2>

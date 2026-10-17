@@ -108,12 +108,38 @@ Variables (`.env.example`): `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `DECISION_MO
 
 ~1 llamada LLM por factura (~1k tokens): centavos por factura. En `replay`, $0.
 
-## Límites honestos
+## Alcance honesto
 
-- No mueve dinero: emite un borrador, no se conecta a ninguna plataforma de pagos.
-- No hace KYC/AML ni verifica identidad de empresas.
-- Datos 100 % ficticios (empresa Lumbre Analytics).
-- Tipos de cambio fijos en `reglas.json`.
+- **El set es sintético:** 25 facturas ficticias de una empresa ficticia. Las cifras (25/25, 0 pagos indebidos) valen para las entradas probadas, no son una garantía general.
+- **No mueve dinero:** emite un borrador `draft_not_executed`; no se conecta a ninguna plataforma de pagos.
+- **No hace KYC/AML** ni verifica la identidad o sanciones de las empresas.
+- **El modelo solo extrae** campos; nunca decide. Si no hay casete o la lectura es dudosa, ESCALA.
+- **No cubre:** PDFs/fotos/XML reales (el set son texto, chat y CFDI JSON), colusión de aprobadores, cuentas del registro maestro comprometidas, tipos de cambio en vivo (fijos en `reglas.json`), ni ataques fuera de las categorías de la arena.
+- Recibo firmado con HMAC y clave derivada de `SECRET_KEY` (no es PKI): protege contra alteración entre la decisión y la aprobación, no contra quien controle el servidor.
+
+## Arena (pentest automático)
+
+`guard/arena.py` genera ataques a partir de las trampas y corre cada uno por el motor, la segunda lectura y el oráculo `allowed_to_pay`. Un ataque cuenta como **pago indebido** si el motor dice PAGAR y la intención del ataque (o el oráculo) dice que no debía pagarse. Categorías: fraccionamiento, cuenta (variantes de formato), inyección (ES/EN/PT, mayúsculas, letras separadas, invisibles, ancho completo, homoglifos), unicode, duplicado, moneda ambigua, fecha (futura y dd/mm ambigua).
+
+Las defensas nuevas son banderas de la política (`reglas_pago.anti_fraccionamiento`, `reglas_pago.normalizar_unicode`): ausentes en el mandato v1 (`data/reglas.json`), activas en v2.
+
+| Mandato | Ataques | Pagos indebidos |
+|---|---|---|
+| v1 (base) | 415 | **170** (fraccionamiento 39, cuenta 17, inyección 7, unicode 62, duplicado 40, fecha 5) |
+| v2 (`anti_fraccionamiento` + `normalizar_unicode`) | 415 | **0** |
+
+Qué cierra v2: `R_FRACCIONAMIENTO` (suma del beneficiario en el mes, pagos y escaladas pendientes, sobre el umbral o el contrato), `R_UNICODE` (invisibles, ancho completo, cirílico/griego en campos clave), número de factura comparado en forma canónica, cuenta exacta (sin tolerancia de mayúsculas) y detección endurecida de inyecciones y fechas dd/mm ambiguas. El golden sigue 25/25 en v1 y en v2.
+
+```bash
+.venv/Scripts/python manage.py arena      # tabla v1 vs v2
+.venv/Scripts/python -m pytest -q tests/test_arena.py tests/test_receipt.py
+```
+
+En la app: tablero `/` -> «Correr arena»; `/reglas/` -> «Aplicar mandato v2», y volver a correr la arena.
+
+## Recibo firmado
+
+Cada decisión lleva un recibo HMAC-SHA256 (factura, monto, moneda, beneficiario, cuenta del registro maestro, resultado, regla, versión de política, nonce, vence en 24 h). Al aprobar, el guardián verifica firma, vencimiento y nonce no usado; si falla no se emite borrador. El borrador incluye `receipt_sig`. En el detalle de factura, «Alterar monto» demuestra el rechazo.
 
 ## Ideas de open source (créditos)
 

@@ -1,4 +1,5 @@
 """Motor de reglas: el código decide, el LLM solo extrae. Default deny."""
+import unicodedata
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -20,6 +21,7 @@ class Decision:
 class Ledger:
     remaining_usd: Decimal
     paid: list[Extraction]
+    seen: list[Extraction] = field(default_factory=list)  # escaladas (pendientes): cuentan para fraccionamiento
 
 
 class Hit(Exception):
@@ -47,6 +49,11 @@ def find_beneficiary(x: Extraction, p: Policy) -> dict | None:
         return None  # nombre de uno y cuenta de otro: que lo vea una persona
     cands = by_acct or by_name
     return cands[0] if len(cands) == 1 else None
+
+
+def _numkey(s: str | None) -> str:
+    """Clave de comparación de número de factura: NFKC, sin invisibles, solo alfanuméricos en minúscula."""
+    return "".join(ch for ch in unicodedata.normalize("NFKC", s or "").casefold() if ch.isalnum())
 
 
 def _month(x: Extraction):
@@ -77,6 +84,22 @@ def r_doble_lectura(c):
                   lectura_regex=f"{c.second_read[1]} {c.second_read[0]}")
 
 
+def odd_text(s: str | None) -> bool:
+    """Texto con invisibles, formas no NFKC (ancho completo) o letras cirílicas/griegas (homoglifos)."""
+    s = s or ""
+    if unicodedata.normalize("NFKC", s) != s:
+        return True
+    return any((unicodedata.category(ch) in ("Cf", "Cc") and not ch.isspace())
+               or unicodedata.name(ch, "").startswith(("CYRILLIC", "GREEK")) for ch in s)
+
+
+def r_unicode(c):
+    # ponytail: default-deny ante cualquier rareza unicode (mandato v2) en vez de "limpiar" y pagar
+    if c.p.normalizar_unicode and any(odd_text(v) for v in (
+            c.x.beneficiary_name, c.x.beneficiary_id, c.x.invoice_number, c.x.bank_account, c.x.concept)):
+        raise Hit("ESCALAR", "R_UNICODE")
+
+
 def r_moneda(c):
     if c.x.currency not in c.p.allowed_currencies:
         raise Hit("FRENAR", "R_MONEDA", moneda=c.x.currency, permitidas=", ".join(sorted(c.p.allowed_currencies)))
@@ -88,7 +111,11 @@ def r_beneficiario(c):
 
 
 def r_cuenta(c):
-    if _norm(c.x.bank_account) != _norm(c.ben["cuenta"]):
+    if c.p.normalizar_unicode:  # v2: cuenta exacta, sin tolerancia de mayúsculas
+        distinta = c.x.bank_account.strip() != c.ben["cuenta"]
+    else:
+        distinta = _norm(c.x.bank_account) != _norm(c.ben["cuenta"])
+    if distinta:
         raise Hit("ESCALAR", "R_CUENTA", cuenta_factura=c.x.bank_account, cuenta_registrada=c.ben["cuenta"])
 
 
@@ -96,7 +123,9 @@ def r_duplicado(c):
     for y in c.ledger.paid:
         if not _same_beneficiary(c.x, y, c.p):
             continue
-        if (c.x.invoice_number and c.x.invoice_number == y.invoice_number) \
+        mismo_num = (_numkey(c.x.invoice_number) == _numkey(y.invoice_number) if c.p.normalizar_unicode
+                     else c.x.invoice_number == y.invoice_number)
+        if (c.x.invoice_number and mismo_num) \
                 or (_norm(c.x.concept) and _norm(c.x.concept) == _norm(y.concept)) \
                 or (c.x.amount == y.amount and _month(c.x) == _month(y)):
             raise Hit("FRENAR", "R_DUPLICADO", factura_previa=y.invoice_id, numero_previo=y.invoice_number)
@@ -122,6 +151,23 @@ def r_limite(c):
         raise Hit("FRENAR", "R_LIMITE", monto_usd=c.usd, limite=c.p.per_payment_limit_usd)
 
 
+def r_fraccionamiento(c):
+    """Mandato v2: pagos del mismo beneficiario en el mes que, sumados, superan el umbral (o el contrato)."""
+    if not c.p.anti_fraccionamiento or c.usd is None:
+        return
+    previos = [y for y in c.ledger.paid + c.ledger.seen
+               if _same_beneficiary(c.x, y, c.p) and _month(y) == _month(c.x)]
+    if not previos:
+        return
+    total = c.usd + sum((to_usd(y, c.p) for y in previos), Decimal("0"))
+    k = c.ben.get("contrato")
+    tope = c.p.approval_threshold_usd
+    if k and k["moneda"] in c.p.fx:  # ponytail: el contrato en USD solo endurece el tope si es menor al umbral
+        tope = min(tope, Decimal(str(k["monto"])) * c.p.fx[k["moneda"]] * (1 + c.p.contract_tolerance_pct / 100))
+    if total > tope:
+        raise Hit("ESCALAR", "R_FRACCIONAMIENTO", total_usd=total, tope=tope, pagos_previos=len(previos))
+
+
 def r_umbral(c):
     if c.usd > c.p.approval_threshold_usd:
         raise Hit("ESCALAR", "R_UMBRAL", monto_usd=c.usd, umbral=c.p.approval_threshold_usd)
@@ -132,8 +178,8 @@ def r_presupuesto(c):
         raise Hit("FRENAR", "R_PRESUPUESTO", monto_usd=c.usd, restante=c.ledger.remaining_usd)
 
 
-RULES = [r_sospecha, r_confianza, r_doble_lectura, r_moneda, r_beneficiario, r_cuenta,
-         r_duplicado, r_fecha, r_contrato, r_limite, r_umbral, r_presupuesto]
+RULES = [r_sospecha, r_confianza, r_unicode, r_doble_lectura, r_moneda, r_beneficiario, r_cuenta,
+         r_duplicado, r_fecha, r_contrato, r_limite, r_fraccionamiento, r_umbral, r_presupuesto]
 
 
 @dataclass

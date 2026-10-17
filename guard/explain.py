@@ -49,6 +49,11 @@ def explain(d: Decision, x: Extraction) -> str:
         return f"Necesita aprobacion: {_money(f.get('monto_usd'))} supera el umbral de {_money(f.get('umbral'))}."
     if rule == "R_PRESUPUESTO":
         return f"Frenada: {_money(f.get('monto_usd'))} supera el presupuesto restante ({_money(f.get('restante'))})."
+    if rule == "R_UNICODE":
+        return "Escalada: algún campo trae caracteres invisibles, de ancho completo o de otro alfabeto (posible suplantación); revisar manualmente."
+    if rule == "R_FRACCIONAMIENTO":
+        return (f"Escalada: con los pagos previos del mes a este beneficiario suman {_money(f.get('total_usd'))}, "
+                f"sobre el tope de {_money(f.get('tope'))} (posible fraccionamiento).")
     if rule == "R_ERROR":
         return f"Escalada: error interno al evaluar ({f.get('error')}); no se paga hasta revisar."
     if rule == "OK":

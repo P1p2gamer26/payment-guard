@@ -5,6 +5,20 @@
 {% block content %}
 <h1>Tablero <span class="pv">política v{{ pv.version }}</span></h1>
 
+<section class="arena{% if arena and arena.indebidos == 0 %} arena--ok{% elif arena %} arena--mal{% endif %}" aria-label="Arena">
+  {% if arena %}
+  <p class="arena__titulo">Arena: {{ arena.indebidos }} pagos indebidos de {{ arena.total }} ataques (política v{{ arena.policy_version.version }})</p>
+  <ul class="arena__cats">
+    {% for cat, c in arena.por_categoria.items %}
+    <li>{{ cat }}: {{ c.indebidos }} / {{ c.n }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="arena__titulo">Arena: aún no corrida para la política v{{ pv.version }}</p>
+  {% endif %}
+  <form method="post" action="{% url 'correr_arena' %}">{% csrf_token %}<button type="submit">Correr arena</button></form>
+</section>
+
 <section class="metrics" aria-label="Metricas">
   {% for d, n in counts.items %}
   <div class="metric metric--{{ d|lower }}">

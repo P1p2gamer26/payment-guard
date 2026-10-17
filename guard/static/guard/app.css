@@ -170,6 +170,8 @@ button:hover, .boton:hover { background: #eef1f4; }
 .stamp--escalar { color: var(--escalar); }
 .stamp--aprobado { color: var(--pagar); }
 .stamp--rechazado { color: var(--escalar); }
+.stamp--ok { color: var(--pagar); font-size: .85rem; }
+.stamp--bad { color: var(--escalar); font-size: .85rem; }
 
 /* Detalle */
 .detalle__titulo { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
@@ -264,3 +266,10 @@ pre {
   .board { grid-template-columns: 1fr; }
   .extraccion__fila { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* Arena */
+.arena { border: 2px solid var(--borde); border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; background: #fff; }
+.arena--ok { border-color: var(--pagar); }
+.arena--mal { border-color: var(--escalar); }
+.arena__titulo { font-size: 1.5rem; font-weight: 700; margin: 0 0 .5rem; }
+.arena__cats { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; list-style: none; padding: 0; margin: 0 0 .75rem; color: var(--suave); }

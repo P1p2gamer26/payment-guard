@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 from decimal import Decimal
 
@@ -8,8 +9,10 @@ from .data import DATA, load_policy
 from .domain import Extraction, Policy
 from .engine import Decision, Ledger, decide, find_beneficiary
 from .explain import explain
-from .models import Approval, DecisionRecord, Invoice, PolicyVersion
-from .extractor import extract
+from . import arena
+from .models import Approval, ArenaRun, DecisionRecord, Invoice, PolicyVersion
+from .receipt import sign
+from .extractor import extract, is_suspicious
 from .second_read import read_total
 
 CENT = Decimal("0.01")
@@ -58,12 +61,15 @@ def process_all(pv: PolicyVersion) -> list[DecisionRecord]:
     for inv in load_invoices():
         x = extract(inv.text, mode=settings.DECISION_MODE)
         b = find_beneficiary(x, policy)
-        x = dataclasses.replace(x, invoice_id=inv.invoice_id, beneficiary_id=b and b["id"])
+        x = dataclasses.replace(x, invoice_id=inv.invoice_id, beneficiary_id=b and b["id"],
+                                suspicious=x.suspicious or is_suspicious(inv.text, policy.normalizar_unicode))
         sr = read_total(inv.text)
         d = decide(x, policy, ledger, second_read=sr)
         if d.outcome == "PAGAR":
             ledger.remaining_usd -= d.amount_usd
             ledger.paid.append(x)
+        elif d.outcome == "ESCALAR":
+            ledger.seen.append(x)
         inv.extraction = _serialize_extraction(x)
         inv.save(update_fields=["extraction"])
         rec, _ = DecisionRecord.objects.update_or_create(
@@ -78,6 +84,8 @@ def process_all(pv: PolicyVersion) -> list[DecisionRecord]:
                 "second_read": _serialize_second_read(sr),
             },
         )
+        rec.receipt = sign(rec)
+        rec.save(update_fields=["receipt"])
         records.append(rec)
     records.sort(key=lambda r: r.invoice.invoice_id)
     return records
@@ -101,8 +109,41 @@ def process_text(text: str, invoice_id: str) -> Decision:
     done = DecisionRecord.objects.filter(policy_version=pv).filter(
         models.Q(outcome="PAGAR") | models.Q(approval__outcome="APROBADO")).select_related("invoice")
     paid = [Extraction.from_dict(r.invoice.extraction) for r in done if r.invoice.extraction]
-    ledger = Ledger(policy.period_budget_remaining_usd - spent_usd(pv), paid)
+    pend = DecisionRecord.objects.filter(policy_version=pv, outcome="ESCALAR", approval__isnull=True).select_related("invoice")
+    seen = [Extraction.from_dict(r.invoice.extraction) for r in pend if r.invoice.extraction]
+    ledger = Ledger(policy.period_budget_remaining_usd - spent_usd(pv), paid, seen)
     x = extract(text, mode=settings.DECISION_MODE)
     b = find_beneficiary(x, policy)
-    x = dataclasses.replace(x, invoice_id=invoice_id, beneficiary_id=b and b["id"])
+    x = dataclasses.replace(x, invoice_id=invoice_id, beneficiary_id=b and b["id"],
+                            suspicious=x.suspicious or is_suspicious(text, policy.normalizar_unicode))
     return decide(x, policy, ledger, second_read=read_total(text))
+
+
+def ensure_receipts(pv: PolicyVersion) -> None:
+    for rec in DecisionRecord.objects.filter(policy_version=pv):
+        if not rec.receipt:
+            try:
+                rec.receipt = sign(rec)
+                rec.save(update_fields=["receipt"])
+            except Exception:
+                pass
+
+
+def mandato_v2(raw: dict) -> dict:
+    """Mandato v2: activa las defensas que cierran los huecos que encuentra la arena."""
+    raw = copy.deepcopy(raw)
+    raw["reglas_pago"]["anti_fraccionamiento"] = True
+    raw["reglas_pago"]["normalizar_unicode"] = True
+    return raw
+
+
+def apply_mandato_v2() -> PolicyVersion:
+    nueva = save_policy(mandato_v2(current_policy().raw))
+    process_all(nueva)
+    return nueva
+
+
+def run_arena(pv: PolicyVersion) -> ArenaRun:
+    r = arena.run(Policy(pv.raw, pv.version))
+    return ArenaRun.objects.create(policy_version=pv, total=r.total, indebidos=r.indebidos,
+                                   por_categoria=r.por_categoria, ejemplos=r.ejemplos)
