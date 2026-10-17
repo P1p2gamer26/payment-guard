@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-294",
+  "object": "chat.completion",
+  "created": 1792259683,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Andes Recruiting Demo S.A.S.\", \"beneficiary_id\": null, \"amount\": \"16000000\", \"currency\": \"COP\", \"issue_date\": \"2026-10-14\", \"invoice_number\": \"AR-0415\", \"bank_account\": \"000-FICT-0016\", \"concept\": \"Success fee - Senior Data Engineer placement\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 324,
+    "prompt_tokens_details": {
+      "cached_tokens": 195
+    },
+    "completion_tokens": 99,
+    "total_tokens": 423
+  }
+}

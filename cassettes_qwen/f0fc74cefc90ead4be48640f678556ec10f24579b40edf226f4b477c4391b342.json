@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-197",
+  "object": "chat.completion",
+  "created": 1792259701,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Delta Pixel Studio Sample LLC\", \"beneficiary_id\": null, \"amount\": \"1500.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-16\", \"invoice_number\": \"DPS-0310\", \"bank_account\": \"FICT-ACH-000018\", \"concept\": \"Illustration retainer October 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 321,
+    "prompt_tokens_details": {
+      "cached_tokens": 320
+    },
+    "completion_tokens": 99,
+    "total_tokens": 420
+  }
+}

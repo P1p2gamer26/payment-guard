@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-699",
+  "object": "chat.completion",
+  "created": 1792259662,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Ridgeview Accounting Sample LLC\", \"beneficiary_id\": null, \"amount\": \"950.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-01\", \"invoice_number\": \"RV-1007\", \"bank_account\": \"FICT-ACH-000013\", \"concept\": \"Oct 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 277,
+    "prompt_tokens_details": {
+      "cached_tokens": 195
+    },
+    "completion_tokens": 94,
+    "total_tokens": 371
+  }
+}

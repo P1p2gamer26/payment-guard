@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-131",
+  "object": "chat.completion",
+  "created": 1792259676,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Valeria Montoya Demo\", \"beneficiary_id\": null, \"amount\": \"5000000\", \"currency\": \"COP\", \"issue_date\": \"2026-10-14\", \"invoice_number\": \"0001\", \"bank_account\": \"000-FICT-0099\", \"concept\": \"Servicios de analisis de mercado octubre 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 300,
+    "prompt_tokens_details": {
+      "cached_tokens": 202
+    },
+    "completion_tokens": 100,
+    "total_tokens": 400
+  }
+}

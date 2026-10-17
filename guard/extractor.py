@@ -12,7 +12,8 @@ from .domain import Extraction
 
 PROMPT_VERSION = "1"
 
-CASSETTE_DIR = Path(__file__).resolve().parent.parent / "cassettes"
+# cassettes = lecturas de Claude Sonnet (9Router); cassettes_qwen = modelo propio afinado (Ollama)
+CASSETTE_DIR = Path(__file__).resolve().parent.parent / os.environ.get("CASSETTE_SET", "cassettes")
 
 PROMPT = """Eres un extractor de datos de facturas. Devuelve SOLO un objeto JSON, sin texto extra, con exactamente estas claves:
 "beneficiary_name" (string), "beneficiary_id" (string o null), "amount" (string decimal, sin símbolo de moneda ni separadores de miles), "currency" (código ISO 3 letras), "issue_date" (YYYY-MM-DD), "invoice_number" (string), "bank_account" (string), "concept" (string corto).

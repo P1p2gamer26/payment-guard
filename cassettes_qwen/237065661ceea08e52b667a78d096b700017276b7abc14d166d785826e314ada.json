@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-953",
+  "object": "chat.completion",
+  "created": 1792259690,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Kestrel Security Audit Sample LLC\", \"beneficiary_id\": null, \"amount\": \"2600.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-15\", \"invoice_number\": \"KSA-2026-07\", \"bank_account\": \"FICT-ACH-000015\", \"concept\": \"Security audit (fixed-fee project, agreed USD 2,600.00)\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 293,
+    "prompt_tokens_details": {
+      "cached_tokens": 193
+    },
+    "completion_tokens": 114,
+    "total_tokens": 407
+  }
+}

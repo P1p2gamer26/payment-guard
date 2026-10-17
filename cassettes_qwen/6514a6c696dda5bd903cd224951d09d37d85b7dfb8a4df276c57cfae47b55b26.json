@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-736",
+  "object": "chat.completion",
+  "created": 1792259651,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Estudio Datos del Sur S.A.S.\", \"beneficiary_id\": null, \"amount\": \"11200000\", \"currency\": \"COP\", \"issue_date\": \"2026-10-12\", \"invoice_number\": \"EV-0210\", \"bank_account\": \"000-FICT-0003\", \"concept\": \"Consultoria de datos octubre 2026 - Total con IVA incluido\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 317,
+    "prompt_tokens_details": {
+      "cached_tokens": 316
+    },
+    "completion_tokens": 110,
+    "total_tokens": 427
+  }
+}

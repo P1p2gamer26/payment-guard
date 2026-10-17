@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-277",
+  "object": "chat.completion",
+  "created": 1792259672,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"CloudHost Demo\", \"beneficiary_id\": null, \"amount\": \"1200.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-13\", \"invoice_number\": \"INV-2026-1043\", \"bank_account\": \"FICT-ACH-000006\", \"concept\": \"October 2026 infrastructure hosting\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 318,
+    "prompt_tokens_details": {
+      "cached_tokens": 202
+    },
+    "completion_tokens": 99,
+    "total_tokens": 417
+  }
+}

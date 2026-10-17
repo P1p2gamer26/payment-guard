@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-747",
+  "object": "chat.completion",
+  "created": 1792259633,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Quill Marketing Sample Inc.\", \"beneficiary_id\": null, \"amount\": \"1800.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-08\", \"invoice_number\": \"QMS-5521\", \"bank_account\": \"FICT-ACH-000008\", \"concept\": \"Content marketing retainer - October 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 339,
+    "prompt_tokens_details": {
+      "cached_tokens": 193
+    },
+    "completion_tokens": 100,
+    "total_tokens": 439
+  }
+}

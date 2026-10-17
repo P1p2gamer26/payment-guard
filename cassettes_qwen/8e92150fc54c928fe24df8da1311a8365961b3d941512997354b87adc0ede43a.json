@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-597",
+  "object": "chat.completion",
+  "created": 1792259637,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Pinewood Legal Example LLP\", \"beneficiary_id\": null, \"amount\": \"2500.00\", \"currency\": \"USD\", \"issue_date\": \"2026-10-06\", \"invoice_number\": \"PLE-2026-10\", \"bank_account\": \"FICT-ACH-000007\", \"concept\": \"October retainer\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 315,
+    "prompt_tokens_details": {
+      "cached_tokens": 195
+    },
+    "completion_tokens": 94,
+    "total_tokens": 409
+  }
+}

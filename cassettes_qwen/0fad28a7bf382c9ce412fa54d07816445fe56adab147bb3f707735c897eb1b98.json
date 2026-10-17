@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-826",
+  "object": "chat.completion",
+  "created": 1792259655,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Sofia\", \"beneficiary_id\": null, \"amount\": \"12000.00\", \"currency\": \"MXN\", \"issue_date\": \"2026-10-12\", \"invoice_number\": \"SL-001\", \"bank_account\": \"FICT-CLABE-0000000011\", \"concept\": \"docs translation project\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 274,
+    "prompt_tokens_details": {
+      "cached_tokens": 193
+    },
+    "completion_tokens": 96,
+    "total_tokens": 370
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-968",
+  "object": "chat.completion",
+  "created": 1792259698,
+  "model": "hf.co/P1p2gamer26/payment-guard-extractor-1.5b:Q4_K_M",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Tomas Vera Muestra\", \"beneficiary_id\": null, \"amount\": \"3200000\", \"currency\": \"COP\", \"issue_date\": \"2027-03-15\", \"invoice_number\": \"0013\", \"bank_account\": \"000-FICT-0009\", \"concept\": \"Servicios de community manager, marzo 2027\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 305,
+    "prompt_tokens_details": {
+      "cached_tokens": 193
+    },
+    "completion_tokens": 98,
+    "total_tokens": 403
+  }
+}

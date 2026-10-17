@@ -8,6 +8,7 @@ if path not in sys.path:
 os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
 os.environ["DEBUG"] = "0"
 os.environ["DECISION_MODE"] = "replay"
+os.environ["CASSETTE_SET"] = "cassettes_qwen"  # lecturas del modelo propio
 os.environ["ALLOWED_HOSTS"] = "p1p2gamer26.pythonanywhere.com"
 
 from django.core.wsgi import get_wsgi_application  # noqa: E402
