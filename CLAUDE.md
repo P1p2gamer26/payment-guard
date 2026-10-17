@@ -8,3 +8,6 @@ Plan: PLAN.md. Estrategia: reto Blinka, Hackathon 30X.
 - UI en español; sin `|safe`/`mark_safe` con datos de facturas.
 - Atajos deliberados con `# ponytail:`.
 - Verificar con `./verify.sh`.
+
+## Para agentes implementadores (opencode/codex)
+TÚ eres el implementador: escribe el código directamente. NUNCA llames a codexr ni lances otros agentes. No hagas commit salvo que el prompt lo pida. No cambies PROMPT_VERSION (invalida los casetes).
