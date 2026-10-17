@@ -51,3 +51,23 @@ def test_unknown_currency_never_pays():
     p = load_policy()
     d = decide(replace(gold("01"), currency="XYZ"), p, fresh(p))
     assert d.outcome != "PAGAR"
+
+
+def test_non_positive_amount_never_pays():
+    from dataclasses import replace
+    from decimal import Decimal
+    from guard.data import load_gold, load_policy
+    from guard.engine import Ledger, decide
+    p = load_policy(); g = {x.invoice_id: x for x in load_gold()}
+    for amt in (Decimal("0"), Decimal("-1200")):
+        d = decide(replace(g["01"], amount=amt), p, Ledger(p.period_budget_remaining_usd, []))
+        assert d.outcome == "ESCALAR"
+
+
+def test_missing_date_escalates():
+    from dataclasses import replace
+    from guard.data import load_gold, load_policy
+    from guard.engine import Ledger, decide
+    p = load_policy(); g = {x.invoice_id: x for x in load_gold()}
+    d = decide(replace(g["01"], issue_date=None), p, Ledger(p.period_budget_remaining_usd, []))
+    assert (d.outcome, d.rule) == ("ESCALAR", "R_FECHA")

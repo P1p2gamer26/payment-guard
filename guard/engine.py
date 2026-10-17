@@ -38,8 +38,19 @@ def to_usd(x: Extraction, p: Policy) -> Decimal:
 def find_beneficiary(x: Extraction, p: Policy) -> dict | None:
     if x.beneficiary_id in p.beneficiaries:
         return p.beneficiaries[x.beneficiary_id]
-    # ponytail: nombre exacto normalizado; fuzzy matching abriría la puerta a suplantación
-    return next((b for b in p.beneficiaries.values() if _norm(b["nombre"]) == _norm(x.beneficiary_name)), None)
+    # Sin id: por cuenta registrada (el dinero solo va a esa cuenta) o por nombre; solo si hay UN candidato.
+    # ponytail: tokens del nombre ⊂ nombre registrado; sin fuzzy matching, que abriría la puerta a suplantación
+    words = set(_norm(x.beneficiary_name).split())
+    by_name = [b for b in p.beneficiaries.values() if words and words <= set(_norm(b["nombre"]).split())]
+    by_acct = [b for b in p.beneficiaries.values() if _norm(b["cuenta"]) == _norm(x.bank_account)]
+    if by_acct and by_name and by_acct != by_name:
+        return None  # nombre de uno y cuenta de otro: que lo vea una persona
+    cands = by_acct or by_name
+    return cands[0] if len(cands) == 1 else None
+
+
+def _month(x: Extraction):
+    return x.issue_date and (x.issue_date.year, x.issue_date.month)
 
 
 def _same_beneficiary(a: Extraction, b: Extraction, p: Policy) -> bool:
@@ -56,6 +67,8 @@ def r_sospecha(c):
 def r_confianza(c):
     if c.x.confidence < 0.8:
         raise Hit("ESCALAR", "R_CONFIANZA", confianza=c.x.confidence)
+    if c.x.amount <= 0:
+        raise Hit("ESCALAR", "R_CONFIANZA", monto=c.x.amount)
 
 
 def r_doble_lectura(c):
@@ -85,11 +98,13 @@ def r_duplicado(c):
             continue
         if (c.x.invoice_number and c.x.invoice_number == y.invoice_number) \
                 or (_norm(c.x.concept) and _norm(c.x.concept) == _norm(y.concept)) \
-                or (c.x.amount == y.amount and c.x.issue_date == y.issue_date):
+                or (c.x.amount == y.amount and _month(c.x) == _month(y)):
             raise Hit("FRENAR", "R_DUPLICADO", factura_previa=y.invoice_id, numero_previo=y.invoice_number)
 
 
 def r_fecha(c):
+    if c.x.issue_date is None:  # sin fecha no se puede validar antigüedad: default deny
+        raise Hit("ESCALAR", "R_FECHA", fecha="sin fecha")
     age = (c.p.today - c.x.issue_date).days
     if age < 0 or age > c.p.max_age_days:
         raise Hit("FRENAR", "R_FECHA", fecha=c.x.issue_date, hoy=c.p.today, max_dias=c.p.max_age_days)
@@ -161,7 +176,7 @@ def run_batch(xs: list[Extraction], p: Policy) -> list[Decision]:
 def allowed_to_pay(x: Extraction, p: Policy, ledger: Ledger) -> bool:
     """Oráculo independiente: re-chequea los límites duros sin usar RULES ni decide()."""
     r = p.raw["reglas_pago"]
-    if x.suspicious or x.confidence < 0.8 or x.currency not in r["monedas_permitidas"]:
+    if x.suspicious or x.confidence < 0.8 or x.amount <= 0 or not x.issue_date or x.currency not in r["monedas_permitidas"]:
         return False
     regs = [b for b in p.raw["beneficiarios_permitidos"]
             if b["id"] == x.beneficiary_id or b["nombre"].casefold().strip() == x.beneficiary_name.casefold().strip()]

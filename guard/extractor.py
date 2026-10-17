@@ -28,15 +28,8 @@ _ALLOWED = (
     "bank_account",
     "concept",
 )
-_REQUIRED = (
-    "beneficiary_name",
-    "amount",
-    "currency",
-    "issue_date",
-    "invoice_number",
-    "bank_account",
-    "concept",
-)
+# ponytail: chats y correos no traen número ni fecha; el motor los tolera, no así monto/moneda/cuenta
+_REQUIRED = ("amount", "currency", "bank_account")
 _SUSPICIOUS_RE = re.compile(
     r"ignore|ignora|system instruction|pre-?approved|aprobad[oa] por el CFO|mark as approved",
     re.IGNORECASE,
@@ -120,15 +113,13 @@ def _build_extraction(data: dict, suspicious: bool) -> Extraction:
         issue = date.fromisoformat(str(fields["issue_date"])) if fields.get("issue_date") else None
     except Exception:
         issue = None
-    if issue is None:
-        missing = True
     return Extraction(
         invoice_id="",
         beneficiary_name=str(fields.get("beneficiary_name") or ""),
         beneficiary_id=fields.get("beneficiary_id"),
         amount=amount if amount is not None else Decimal("0"),
         currency=str(fields.get("currency") or "").upper(),
-        issue_date=issue if issue is not None else date(1970, 1, 1),
+        issue_date=issue,
         invoice_number=str(fields.get("invoice_number") or ""),
         bank_account=str(fields.get("bank_account") or ""),
         concept=str(fields.get("concept") or ""),

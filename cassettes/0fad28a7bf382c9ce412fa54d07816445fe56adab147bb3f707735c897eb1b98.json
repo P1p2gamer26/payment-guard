@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wnVA5SmVSQUK8MNqqv",
+  "object": "chat.completion",
+  "created": 1792246312,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":\"Sofia\",\"beneficiary_id\":null,\"amount\":\"12000.00\",\"currency\":\"MXN\",\"issue_date\":\"2026-10-12\",\"invoice_number\":\"SL-001\",\"bank_account\":\"FICT-CLABE-0000000011\",\"concept\":\"Docs translation project\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2290,
+    "completion_tokens": 75,
+    "total_tokens": 2365
+  }
+}

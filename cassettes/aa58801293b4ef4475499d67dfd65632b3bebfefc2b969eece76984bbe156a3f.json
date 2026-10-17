@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wkRqawYsJfv1kHUr1q",
+  "object": "chat.completion",
+  "created": 1792246284,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":\"Andres Pardo\",\"beneficiary_id\":null,\"amount\":\"6000000\",\"currency\":\"COP\",\"issue_date\":\"2026-10-07\",\"invoice_number\":null,\"bank_account\":\"000-FICT-0002\",\"concept\":\"Diseño de producto octubre\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2321,
+    "completion_tokens": 73,
+    "total_tokens": 2394
+  }
+}

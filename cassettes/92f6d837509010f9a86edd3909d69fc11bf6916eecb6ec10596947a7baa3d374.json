@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wkhvULmeiRs2nac2Ue",
+  "object": "chat.completion",
+  "created": 1792246288,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\"beneficiary_name\":\"Quill Marketing Sample Inc.\",\"beneficiary_id\":null,\"amount\":\"1800.00\",\"currency\":\"USD\",\"issue_date\":\"2026-10-08\",\"invoice_number\":\"QMS-5521\",\"bank_account\":\"FICT-ACH-000008\",\"concept\":\"Content marketing retainer - October 2026\"}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2350,
+    "completion_tokens": 87,
+    "total_tokens": 2437
+  }
+}

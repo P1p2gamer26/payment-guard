@@ -10,7 +10,7 @@ class Extraction:
     beneficiary_id: str | None
     amount: Decimal
     currency: str
-    issue_date: date
+    issue_date: date | None
     invoice_number: str
     bank_account: str
     concept: str
@@ -21,14 +21,14 @@ class Extraction:
     def from_dict(cls, d: dict) -> "Extraction":
         return cls(
             invoice_id=str(d["invoice_id"]),
-            beneficiary_name=d["beneficiary_name"],
+            beneficiary_name=d.get("beneficiary_name") or "",
             beneficiary_id=d.get("beneficiary_id"),
             amount=Decimal(str(d["amount"])),
             currency=d["currency"].upper(),
-            issue_date=date.fromisoformat(d["issue_date"]),
-            invoice_number=d["invoice_number"],
-            bank_account=d["bank_account"],
-            concept=d["concept"],
+            issue_date=date.fromisoformat(d["issue_date"]) if d.get("issue_date") else None,
+            invoice_number=d.get("invoice_number") or "",
+            bank_account=d.get("bank_account") or "",
+            concept=d.get("concept") or "",
             confidence=float(d.get("confidence", 1.0)),
             suspicious=bool(d.get("suspicious", False)),
         )

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wobJwKJuu6hpxKRzPS",
+  "object": "chat.completion",
+  "created": 1792246328,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\"beneficiary_name\":\"Camila Rojas Demo\",\"beneficiary_id\":\"1000000001\",\"amount\":\"8800000\",\"currency\":\"COP\",\"issue_date\":\"2026-10-02\",\"invoice_number\":\"CC-0007\",\"bank_account\":\"000-FICT-0001\",\"concept\":\"Desarrollo backend, octubre de 2026\"}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2369,
+    "completion_tokens": 88,
+    "total_tokens": 2457
+  }
+}

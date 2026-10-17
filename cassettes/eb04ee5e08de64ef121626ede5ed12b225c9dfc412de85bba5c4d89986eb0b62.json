@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wqZ3aAt6PicqR4xo9i",
+  "object": "chat.completion",
+  "created": 1792246354,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":null,\"beneficiary_id\":null,\"amount\":\"880.00\",\"currency\":\"EUR\",\"issue_date\":\"2026-10-15\",\"invoice_number\":\"RV-1012\",\"bank_account\":\"FICT-ACH-000013\",\"concept\":\"Tax advisory add-on\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2317,
+    "completion_tokens": 71,
+    "total_tokens": 2388
+  }
+}

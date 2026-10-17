@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wk7mPodv1YM35MPmuW",
+  "object": "chat.completion",
+  "created": 1792246281,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Soluciones Cuautla Demo S.A. de C.V.\",\n  \"beneficiary_id\": \"FICT010101AA1\",\n  \"amount\": \"36000.00\",\n  \"currency\": \"MXN\",\n  \"issue_date\": \"2026-10-06\",\n  \"invoice_number\": \"A-1182\",\n  \"bank_account\": \"FICT-CLABE-0000000004\",\n  \"concept\": \"Soporte tecnico nivel 2 - octubre 2026\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2522,
+    "completion_tokens": 146,
+    "total_tokens": 2668
+  }
+}

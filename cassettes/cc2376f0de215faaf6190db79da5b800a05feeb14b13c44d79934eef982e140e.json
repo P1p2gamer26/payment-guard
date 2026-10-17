@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wmJNQoP42mV2L2r2Fe",
+  "object": "chat.completion",
+  "created": 1792246296,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":\"Tomas Vera Muestra\",\"beneficiary_id\":\"1000000009\",\"amount\":\"3200000\",\"currency\":\"COP\",\"issue_date\":\"2026-10-09\",\"invoice_number\":\"0012\",\"bank_account\":\"000-FICT-0009\",\"concept\":\"Servicios de community manager, octubre 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2327,
+    "completion_tokens": 84,
+    "total_tokens": 2411
+  }
+}

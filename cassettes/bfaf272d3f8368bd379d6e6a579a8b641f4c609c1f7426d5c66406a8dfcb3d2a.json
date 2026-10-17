@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wmu3UXtXzmr5RMWDHa",
+  "object": "chat.completion",
+  "created": 1792246305,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": null,\n  \"beneficiary_id\": null,\n  \"amount\": \"18000\",\n  \"currency\": \"MXN\",\n  \"issue_date\": null,\n  \"invoice_number\": null,\n  \"bank_account\": \"FICT-CLABE-0000000010\",\n  \"concept\": \"Renta de oficina octubre\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2317,
+    "completion_tokens": 103,
+    "total_tokens": 2420
+  }
+}

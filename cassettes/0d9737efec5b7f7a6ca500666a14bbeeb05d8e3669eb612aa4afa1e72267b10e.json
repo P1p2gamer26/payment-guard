@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7wpigU48MgG1wVjKw3Q",
+  "object": "chat.completion",
+  "created": 1792246343,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Andes Recruiting Demo S.A.S.\",\n  \"beneficiary_id\": null,\n  \"amount\": \"16000000\",\n  \"currency\": \"COP\",\n  \"issue_date\": \"2026-10-14\",\n  \"invoice_number\": \"AR-0415\",\n  \"bank_account\": \"000-FICT-0016\",\n  \"concept\": \"Honorarios de éxito por contratación Senior Data Engineer\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2346,
+    "completion_tokens": 127,
+    "total_tokens": 2473
+  }
+}
