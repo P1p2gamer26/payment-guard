@@ -11,7 +11,7 @@
 (function (root) {
   'use strict';
   const SEQ = [{"id":"01","k":"correo","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"02","k":"hoja","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"03","k":"cfdi","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"04","k":"chat","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"05","k":"hoja","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"06","k":"correo","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"07","k":"hoja","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"08","k":"cfdi","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"09","k":"chat","d":"P","r":"OK","i":13,"s":0,"t":""},{"id":"10","k":"hoja","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"11","k":"chat","d":"P","r":"OK","i":13,"s":0,"t":""},{"id":"12","k":"hoja","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"13","k":"correo","d":"P","r":"OK","i":13,"s":0,"t":""},{"id":"14","k":"chat","d":"P","r":"OK","i":13,"s":1,"t":""},{"id":"15","k":"hoja","d":"F","r":"R_DUPLICADO","i":7,"s":1,"t":""},{"id":"16","k":"correo","d":"F","r":"R_DUPLICADO","i":7,"s":0,"t":""},{"id":"17","k":"hoja","d":"E","r":"R_BENEFICIARIO","i":5,"s":1,"t":"block"},{"id":"18","k":"cfdi","d":"E","r":"R_CONTRATO","i":9,"s":1,"t":"block"},{"id":"19","k":"correo","d":"E","r":"R_UMBRAL","i":11,"s":1,"t":"block"},{"id":"20","k":"hoja","d":"F","r":"R_LIMITE","i":10,"s":1,"t":""},{"id":"21","k":"hoja","d":"F","r":"R_PRESUPUESTO","i":12,"s":1,"t":""},{"id":"22","k":"correo","d":"F","r":"R_MONEDA","i":4,"s":1,"t":""},{"id":"23","k":"hoja","d":"F","r":"R_FECHA","i":8,"s":1,"t":""},{"id":"24","k":"hoja","d":"E","r":"R_SOSPECHA","i":1,"s":1,"t":"inj"},{"id":"25","k":"correo","d":"E","r":"R_CUENTA","i":6,"s":0,"t":"draft"}]; // {id,k:kind,d:P|F|E,r:regla,i:índice 1-13,s:1 si regex lee,t:''|inj|draft|block}
-  const RULE_SHORT = ['SOSPECHA', 'CONFIANZA', 'DOBLE LECT.', 'MONEDA', 'BENEFIC.', 'CUENTA', 'DUPLICADO', 'FECHA', 'CONTRATO', 'LÍMITE', 'UMBRAL', 'PRESUP.', 'OK'];
+  const RULE_SHORT = ['SOSPECHA', 'CONFIAN.', 'DOBLE', 'MONEDA', 'BENEF.', 'CUENTA', 'DUPLIC.', 'FECHA', 'CONTRATO', 'LÍMITE', 'UMBRAL', 'PRESUP.', 'OK'];
   const KLABEL = { correo: 'CORREO', chat: 'CHAT', cfdi: 'CFDI', hoja: 'COBRO' };
   const X = { start: -11.5, llm: -7.6, key: -4.3, e0: -1.6, e1: 4.0, branch: 6.2 };
   const LZ = { P: -2.4, F: 0, E: 2.4 };
@@ -129,10 +129,10 @@
     for (let i = 0; i < NR; i++) {
       const x = X.e0 + 0.3 + i * ((X.e1 - X.e0 - 0.6) / (NR - 1));
       const rm = new THREE.MeshBasicMaterial({ color: P.line.clone() }); own.push(rm); const r = new THREE.Mesh(ringGeo, rm); r.rotation.y = Math.PI / 2; r.position.set(x, 0.58, 0); world.add(r); rings.push(r); ringCol.push(P.ac);
-      const ly = 1.7 + (i % 4) * 0.52;
-      const ln = new THREE.Mesh(BOX, mat('line', { transparent: true, opacity: 0.6 })); ln.scale.set(0.012, ly - 1.25 - 0.1, 0.012); ln.position.set(x, (1.25 + ly - 0.1) / 2, 0); world.add(ln);
-      const sp = sprite(384, 96, 2.0, 0.5, (g, w, h) => { g.textAlign = 'center'; g.fillStyle = hex(P.ink); g.font = F(MONO, 40); g.fillText((i + 1) + ' ' + RULE_SHORT[i], w / 2, 62); });
-      sp.position.set(x, ly, 0); world.add(sp); redraws.push(sp);
+      const side = i % 2 === 0 ? -1 : 1, lz = side * (1.35 + (Math.floor(i / 2) % 3) * 0.6);
+      const ln = new THREE.Mesh(BOX, mat('line', { transparent: true, opacity: 0.8 })); ln.scale.set(0.014, 0.014, Math.abs(lz) - 0.7); ln.position.set(x, 0.08, side * (Math.abs(lz) + 0.7) / 2); world.add(ln);
+      const sp = sprite(384, 96, 2.4, 0.6, (g, w, h) => { g.textAlign = 'center'; g.fillStyle = hex(P.ink); g.font = F(MONO, 48); g.fillText((i + 1) + ' ' + RULE_SHORT[i], w / 2, 64); });
+      sp.position.set(x, 0.12, lz); world.add(sp); redraws.push(sp);
     }
     const tunnelBase = new THREE.Mesh(BOX, mat('ac', { transparent: true, opacity: 0.1 })); tunnelBase.scale.set(X.e1 - X.e0, 0.05, 1.4); tunnelBase.position.set((X.e0 + X.e1) / 2, 0.03, 0); world.add(tunnelBase);
 
@@ -154,11 +154,11 @@
     label('Facturas', 'sobre · burbuja · hoja', -10.0, 1.2, 0);
     label('1 · LLM extrae', 'solo lee, no decide', X.llm, 3.45, 0);
     label('2 · Doble llave', 'regex ≟ LLM: monto y moneda', X.key, 2.75, 0);
-    label('3 · Motor de reglas', 'default-deny · 13 pasos en orden', (X.e0 + X.e1) / 2, 4.2, 0);
+    label('3 · Motor de reglas', 'default-deny · 13 pasos en orden', (X.e0 + X.e1) / 2, 0.3, -4.3);
     label('PAGAR', 'dentro de reglas', 13.0, 0.9, LZ.P, 'pay');
     label('FRENAR', 'inválido, sin discusión', 12.4, 0.9, 0, 'stop');
     label('ESCALAR', 'persona aprueba · re-chequea', PERSON.x, 2.6, LZ.E, 'esc');
-    label('draft_not_executed', 'no mueve dinero', 13.1, 1.0, LZ.E + 1.6);
+    label('draft_not_executed', 'no mueve dinero', 13.1, 0.8, LZ.E + 1.3);
 
     // ---------- documentos ----------
     const topTex = {};
@@ -254,7 +254,7 @@
           it.s += SPEED * dt; const [x, z] = at(it.info, it.s); it.g.position.set(x, 0.06, z);
           if (Math.random() < 0.5 && x < X.branch + 3) emit(x - 0.6, 0.1, z, it.decided ? dcol(d.d) : P.ac);
           // campos saltan al LLM
-          if (!it.fl && x > X.llm - 0.9) { it.fl = 1; for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(BOX, matBar); m.scale.set(0.34, 0.1, 0.09); world.add(m); flights.push({ m, k, t: -k * 0.16, from: new THREE.Vector3(), it }); } }
+          if (!it.fl && x > X.llm - 0.9) { it.fl = 1; for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(BOX, matBar); m.scale.set(0.2, 0.06, 0.06); world.add(m); flights.push({ m, k, t: -k * 0.16, from: new THREE.Vector3(), it }); } }
           if (it.fl === 1 && x > X.llm + 0.5) { it.bars.visible = true; it.fl = 2; }
           // doble llave
           if (x > X.key - 2.6 && x < X.key + 1.2) { keyActive = true; if (!it.keyDone && x > X.key - 2.2) { it.keyDone = true; keyState.sr = d.s; keyState.t0 = time; } }
@@ -315,7 +315,7 @@
         world.rotation.y = -Math.PI / 2; rotated = true; target.set(-1.2, 0, 0.8); dir = new THREE.Vector3(0.0, 0.93, 0.36).normalize();
         dist = Math.max(14.5 / (tf * a), 31 / tf / 1.05); if (a < 0.9) dist = Math.max(14.5 / (tf * a), 29 / tf);
       } else {
-        world.rotation.y = 0; rotated = false; target.set(2.2, 0.0, 0.2); dir = new THREE.Vector3(0.1, 0.86, 0.5).normalize(); dist = Math.max(27.5 / (tf * a), 11 / tf);
+        world.rotation.y = 0; rotated = false; target.set(1.5, 0.0, 0.5); dir = new THREE.Vector3(0.0, 0.86, 0.5).normalize(); dist = Math.max(31 / (tf * a), 10.5 / tf);
       }
       camDist = dist; camBase.copy(target).addScaledVector(dir, dist); camSide.set(dir.z, 0, -dir.x).normalize(); camera.position.copy(camBase); camera.lookAt(target); camera.updateProjectionMatrix();
       if (!running) renderer.render(scene, camera);
