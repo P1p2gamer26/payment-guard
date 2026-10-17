@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x4bHcmB6ZdYKKVi6zT",
+  "object": "chat.completion",
+  "created": 1792246531,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\"beneficiary_name\":\"Andes Recruiting Demo S.A.S.\",\"beneficiary_id\":null,\"amount\":\"16000000\",\"currency\":\"COP\",\"issue_date\":\"2026-10-14\",\"invoice_number\":\"AR-0415\",\"bank_account\":\"000-FICT-0016\",\"concept\":\"Success fee - Senior Data Engineer placement\"}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2419,
+    "completion_tokens": 88,
+    "total_tokens": 2507
+  }
+}

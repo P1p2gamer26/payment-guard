@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x4J9yitk1BwBPWtzCe",
+  "object": "chat.completion",
+  "created": 1792246527,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Soluciones Cuautla Demo S.A. de C.V.\",\n  \"beneficiary_id\": \"FICT010101AA1\",\n  \"amount\": \"48500.00\",\n  \"currency\": \"MXN\",\n  \"issue_date\": \"2026-10-14\",\n  \"invoice_number\": \"A-1199\",\n  \"bank_account\": \"FICT-CLABE-0000000004\",\n  \"concept\": \"Soporte tecnico nivel 2 - horas adicionales octubre 2026\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2544,
+    "completion_tokens": 150,
+    "total_tokens": 2694
+  }
+}

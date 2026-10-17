@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x6EmeHTdCdqrvsy37y",
+  "object": "chat.completion",
+  "created": 1792246554,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Ingrid Salazar\",\n  \"beneficiary_id\": null,\n  \"amount\": \"2000000\",\n  \"currency\": \"COP\",\n  \"issue_date\": \"2026-10-16\",\n  \"invoice_number\": null,\n  \"bank_account\": \"000-FICT-9999\",\n  \"concept\": \"Traducción octubre\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2412,
+    "completion_tokens": 108,
+    "total_tokens": 2520
+  }
+}

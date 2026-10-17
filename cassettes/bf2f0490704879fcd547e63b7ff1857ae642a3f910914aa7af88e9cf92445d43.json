@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x5PE7EpVRUNwc8ZgVG",
+  "object": "chat.completion",
+  "created": 1792246542,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\": \"Ridgeview Sample\", \"beneficiary_id\": null, \"amount\": \"880.00\", \"currency\": \"EUR\", \"issue_date\": \"2026-10-15\", \"invoice_number\": \"RV-1012\", \"bank_account\": \"FICT-ACH-000013\", \"concept\": \"Tax advisory add-on\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2390,
+    "completion_tokens": 89,
+    "total_tokens": 2479
+  }
+}

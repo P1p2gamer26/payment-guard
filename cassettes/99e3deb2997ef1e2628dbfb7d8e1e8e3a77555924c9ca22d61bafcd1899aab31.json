@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x4rdbcAHjfYr49zhbR",
+  "object": "chat.completion",
+  "created": 1792246535,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":\"Hexa Equipos Ejemplo S.A. de C.V.\",\"beneficiary_id\":null,\"amount\":\"126000.00\",\"currency\":\"MXN\",\"issue_date\":\"2026-10-15\",\"invoice_number\":\"HX-3301\",\"bank_account\":\"FICT-CLABE-0000000017\",\"concept\":\"7 laptops equipo de trabajo\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2400,
+    "completion_tokens": 96,
+    "total_tokens": 2496
+  }
+}

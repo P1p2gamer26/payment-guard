@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x2h45N19iq1nDTm6n3",
+  "object": "chat.completion",
+  "created": 1792246505,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"beneficiary_name\":\"Nube Andina Demo S.A.S.\",\"beneficiary_id\":\"900.000.000-1\",\"amount\":\"2400000\",\"currency\":\"COP\",\"issue_date\":\"2026-10-13\",\"invoice_number\":\"NA-0098\",\"bank_account\":\"000-FICT-0012\",\"concept\":\"Licencia de software octubre 2026\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2392,
+    "completion_tokens": 92,
+    "total_tokens": 2484
+  }
+}

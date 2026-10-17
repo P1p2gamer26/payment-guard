@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x5xNezyaqnLD4nsbb9",
+  "object": "chat.completion",
+  "created": 1792246550,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Delta Pixel Studio Sample LLC\",\n  \"beneficiary_id\": null,\n  \"amount\": \"1500.00\",\n  \"currency\": \"USD\",\n  \"issue_date\": \"2026-10-16\",\n  \"invoice_number\": \"DPS-0310\",\n  \"bank_account\": \"FICT-ACH-000018\",\n  \"concept\": \"Illustration retainer October 2026\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2415,
+    "completion_tokens": 118,
+    "total_tokens": 2533
+  }
+}
