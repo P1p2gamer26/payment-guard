@@ -1,0 +1,39 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Payment Guard{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'guard/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'board' %}">Payment Guard</a>
+    <nav class="nav" aria-label="Principal">
+      <a href="{% url 'board' %}">Tablero</a>
+      <a href="{% url 'inbox' %}">Aprobaciones</a>
+      <a href="{% url 'rules' %}">Reglas</a>
+      <a href="{% url 'log' %}">Registro</a>
+    </nav>
+    <form class="reset" method="post" action="{% url 'reset_demo' %}">
+      {% csrf_token %}
+      <button type="submit">Reiniciar demo</button>
+    </form>
+  </header>
+
+  {% if messages %}
+  <ul class="messages">
+    {% for m in messages %}
+    <li class="message message--{{ m.tags }}">{{ m }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">Datos 100% ficticios · decide el codigo, no el modelo</footer>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Reglas · Payment Guard{% endblock %}
+
+{% block content %}
+<h1>Reglas <span class="pv">política v{{ pv.version }}</span></h1>
+
+<form class="form" method="post">
+  {% csrf_token %}
+  <div class="form__campo">
+    <label for="limite_por_pago">Límite por pago (USD)</label>
+    <input id="limite_por_pago" name="limite_por_pago" value="{{ form.limite_por_pago }}" inputmode="decimal" required>
+  </div>
+  <div class="form__campo">
+    <label for="umbral_aprobacion">Umbral de aprobación (USD)</label>
+    <input id="umbral_aprobacion" name="umbral_aprobacion" value="{{ form.umbral_aprobacion }}" inputmode="decimal" required>
+  </div>
+  <div class="form__campo">
+    <label for="monedas">Monedas permitidas (coma-separadas, ISO 3 letras)</label>
+    <input id="monedas" name="monedas" value="{{ form.monedas }}" required>
+  </div>
+  <div class="form__campo">
+    <label for="tolerancia">Tolerancia de contrato (%)</label>
+    <input id="tolerancia" name="tolerancia" value="{{ form.tolerancia }}" inputmode="decimal" required>
+  </div>
+  <button type="submit">Guardar y reprocesar</button>
+  <p class="form__nota">Guardar crea una versión nueva de la política y reprocesa las 25 facturas; las decisiones viejas conservan su versión.</p>
+</form>
+
+<section>
+  <h2>Historial de versiones</h2>
+  <ul class="versiones">
+    {% for v in versiones %}
+    <li class="version{% if v.actual %} version--actual{% endif %}">
+      v{{ v.version }} · {{ v.created_at|date:"Y-m-d H:i" }}{% if v.actual %} · actual{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

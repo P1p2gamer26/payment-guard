@@ -1,0 +1,58 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Tablero · Payment Guard{% endblock %}
+
+{% block content %}
+<h1>Tablero <span class="pv">política v{{ pv.version }}</span></h1>
+
+<section class="metrics" aria-label="Metricas">
+  {% for d, n in counts.items %}
+  <div class="metric metric--{{ d|lower }}">
+    <span class="metric__label">{{ d }}</span>
+    <span class="metric__value">{{ n }}</span>
+  </div>
+  {% endfor %}
+
+  <div class="metric metric--gauge">
+    <span class="metric__label">Autonomía</span>
+    <span class="metric__value">{{ autonomia }}%</span>
+    <div class="gauge"><span class="gauge__fill" style="width: {{ autonomia }}%"></span></div>
+  </div>
+
+  <div class="metric metric--texto">
+    <span class="metric__nota">Pagos indebidos: {{ indebidos }}</span>
+  </div>
+
+  {% if coincide is not None %}
+  <div class="metric metric--texto">
+    <span class="metric__nota">Coinciden con esperado: {{ coincide }}/25</span>
+  </div>
+  {% endif %}
+
+  <div class="metric">
+    <span class="metric__label">Presupuesto restante</span>
+    <span class="metric__value">USD {{ restante }}</span>
+  </div>
+</section>
+
+<div class="board">
+  {% for lane in lanes %}
+  <section class="lane lane--{{ lane.key|lower }}">
+    <h2 class="lane__titulo">{{ lane.key }} <span class="lane__conteo">{{ lane.tickets|length }}</span></h2>
+    {% for t in lane.tickets %}
+    <article class="ticket">
+      <div class="ticket__cabecera">
+        <a class="ticket__id" href="{% url 'invoice_detail' t.id %}">{{ t.id }}</a>
+        <span class="stamp stamp--{{ t.outcome|lower }}">{{ t.outcome }}</span>
+      </div>
+      <p class="ticket__beneficiario">{{ t.beneficiario }}</p>
+      <p class="ticket__monto">{{ t.monto }} {{ t.moneda }}</p>
+      <p class="ticket__regla">{{ t.regla }}</p>
+    </article>
+    {% empty %}
+    <p class="lane__vacia">Sin facturas en esta columna.</p>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

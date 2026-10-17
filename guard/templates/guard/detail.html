@@ -1,0 +1,77 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Factura {{ invoice.invoice_id }} · Payment Guard{% endblock %}
+
+{% block content %}
+<h1 class="detalle__titulo">
+  Factura {{ invoice.invoice_id }}
+  {% if record %}<span class="stamp stamp--{{ record.outcome|lower }}">{{ record.outcome }}</span>{% endif %}
+  <span class="pv">política v{{ pv.version }}</span>
+</h1>
+
+{% if record %}
+<p class="detalle__regla">Regla: <strong>{{ record.rule }}</strong></p>
+<p class="detalle__explicacion">{{ record.explanation }}</p>
+{% else %}
+<p class="detalle__vacio">Sin decisión registrada para la política actual.</p>
+{% endif %}
+
+<section>
+  <h2>Texto original</h2>
+  <pre class="texto">{{ invoice.text }}</pre>
+</section>
+
+<section>
+  <h2>Extracción (primera lectura)</h2>
+  {% if invoice.extraction %}
+  <dl class="extraccion">
+    {% for k, v in invoice.extraction.items %}
+    <div class="extraccion__fila">
+      <dt>{{ k }}</dt>
+      <dd>{{ v }}</dd>
+    </div>
+    {% endfor %}
+  </dl>
+  {% else %}
+  <p>Sin extracción registrada.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Segunda lectura (regex)</h2>
+  {% if second_read %}
+  <p class="lectura"><strong>{{ second_read.1 }} {{ second_read.0 }}</strong></p>
+  {% else %}
+  <p class="lectura lectura--nula">Sin segunda lectura clara.</p>
+  {% endif %}
+</section>
+
+{% if record %}
+<section>
+  <h2>Valores comparados (facts)</h2>
+  <pre class="facts">{{ facts_json }}</pre>
+</section>
+
+<section>
+  <h2>Reglas en orden</h2>
+  <ul class="rule-path">
+    {% for r in reglas %}
+    <li class="{{ r.estado }}">{{ r.nombre }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if aprobacion %}
+<section>
+  <h2>Aprobación humana</h2>
+  <p>
+    <span class="stamp stamp--{{ aprobacion.outcome|lower }}">{{ aprobacion.outcome }}</span>
+    · {{ aprobacion.approver }}
+    · nota: {{ aprobacion.note }}
+  </p>
+  <h3>Borrador de pago</h3>
+  <pre class="draft">{{ draft_json }}</pre>
+</section>
+{% endif %}
+{% endblock %}

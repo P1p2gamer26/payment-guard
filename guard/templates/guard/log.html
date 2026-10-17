@@ -1,0 +1,45 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Registro · Payment Guard{% endblock %}
+
+{% block content %}
+<h1>Registro <span class="pv">política v{{ pv.version }}</span></h1>
+
+<p class="registro__acciones"><a class="boton" href="?format=csv">Descargar CSV</a></p>
+
+<div class="tabla__scroll">
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th>Factura</th>
+        <th>Beneficiario</th>
+        <th>Monto</th>
+        <th>Monto USD</th>
+        <th>Decisión</th>
+        <th>Regla</th>
+        <th>Explicación</th>
+        <th>Aprobación</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td><a href="{% url 'invoice_detail' f.invoice_id %}">{{ f.invoice_id }}</a></td>
+        <td>{{ f.beneficiario }}</td>
+        <td>{{ f.monto }} {{ f.moneda }}</td>
+        <td>{{ f.monto_usd }}</td>
+        <td><span class="stamp stamp--{{ f.decision|lower }}">{{ f.decision }}</span></td>
+        <td>{{ f.regla }}</td>
+        <td class="tabla__explicacion">{{ f.explicacion }}</td>
+        <td>
+          {% if f.aprobacion %}
+          {{ f.aprobacion }} · {{ f.aprobador }}
+          {% if f.nota %}<br><span class="tabla__nota">{{ f.nota }}</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

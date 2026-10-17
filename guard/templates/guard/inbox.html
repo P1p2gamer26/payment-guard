@@ -1,0 +1,36 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Aprobaciones · Payment Guard{% endblock %}
+
+{% block content %}
+<h1>Aprobaciones pendientes <span class="pv">política v{{ pv.version }}</span></h1>
+
+{% for r in pendientes %}
+<article class="ticket ticket--pendiente">
+  <div class="ticket__cabecera">
+    <a class="ticket__id" href="{% url 'invoice_detail' r.invoice.invoice_id %}">{{ r.invoice.invoice_id }}</a>
+    <span class="stamp stamp--escalar">ESCALAR</span>
+    <span class="ticket__regla">{{ r.rule }}</span>
+  </div>
+  <p class="ticket__explicacion">{{ r.explanation }}</p>
+
+  <form class="form form--aprobacion" method="post" action="{% url 'decide_approval' r.pk %}">
+    {% csrf_token %}
+    <div class="form__campo">
+      <label for="approver-{{ r.pk }}">Aprueba</label>
+      <input id="approver-{{ r.pk }}" name="approver" value="cfo@lumbre.example">
+    </div>
+    <div class="form__campo">
+      <label for="note-{{ r.pk }}">Nota (obligatoria)</label>
+      <textarea id="note-{{ r.pk }}" name="note" rows="2" required></textarea>
+    </div>
+    <div class="form__acciones">
+      <button type="submit" name="action" value="aprobar">Aprobar</button>
+      <button type="submit" name="action" value="rechazar" class="boton--secundario">Rechazar</button>
+    </div>
+  </form>
+</article>
+{% empty %}
+<p class="vacio">No hay escalados pendientes de aprobación.</p>
+{% endfor %}
+{% endblock %}
