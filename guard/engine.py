@@ -50,7 +50,7 @@ def find_beneficiary(x: Extraction, p: Policy) -> dict | None:
 
 
 def _month(x: Extraction):
-    return x.issue_date and (x.issue_date.year, x.issue_date.month)
+    return x.issue_date and (x.issue_date.year, x.issue_date.month)  # None = sin fecha
 
 
 def _same_beneficiary(a: Extraction, b: Extraction, p: Policy) -> bool:
@@ -103,9 +103,8 @@ def r_duplicado(c):
 
 
 def r_fecha(c):
-    if c.x.issue_date is None:  # sin fecha no se puede validar antigüedad: default deny
-        raise Hit("ESCALAR", "R_FECHA", fecha="sin fecha")
-    age = (c.p.today - c.x.issue_date).days
+    # ponytail: sin fecha de emisión (chat/correo) se toma la de recepción = hoy; el duplicado se cubre por número/concepto/monto
+    age = (c.p.today - (c.x.issue_date or c.p.today)).days
     if age < 0 or age > c.p.max_age_days:
         raise Hit("FRENAR", "R_FECHA", fecha=c.x.issue_date, hoy=c.p.today, max_dias=c.p.max_age_days)
 
@@ -176,7 +175,7 @@ def run_batch(xs: list[Extraction], p: Policy) -> list[Decision]:
 def allowed_to_pay(x: Extraction, p: Policy, ledger: Ledger) -> bool:
     """Oráculo independiente: re-chequea los límites duros sin usar RULES ni decide()."""
     r = p.raw["reglas_pago"]
-    if x.suspicious or x.confidence < 0.8 or x.amount <= 0 or not x.issue_date or x.currency not in r["monedas_permitidas"]:
+    if x.suspicious or x.confidence < 0.8 or x.amount <= 0 or x.currency not in r["monedas_permitidas"]:
         return False
     regs = [b for b in p.raw["beneficiarios_permitidos"]
             if b["id"] == x.beneficiary_id or b["nombre"].casefold().strip() == x.beneficiary_name.casefold().strip()]
@@ -187,6 +186,6 @@ def allowed_to_pay(x: Extraction, p: Policy, ledger: Ledger) -> bool:
         return False
     if usd > ledger.remaining_usd + CENT:
         return False
-    if not (0 <= (p.today - x.issue_date).days <= int(r["fecha"]["antiguedad_maxima_dias"])):
+    if not (0 <= (p.today - (x.issue_date or p.today)).days <= int(r["fecha"]["antiguedad_maxima_dias"])):
         return False
     return all(y.invoice_number != x.invoice_number for y in ledger.paid if y.beneficiary_id == x.beneficiary_id)

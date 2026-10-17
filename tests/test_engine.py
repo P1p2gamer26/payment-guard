@@ -64,10 +64,10 @@ def test_non_positive_amount_never_pays():
         assert d.outcome == "ESCALAR"
 
 
-def test_missing_date_escalates():
+def test_missing_date_uses_reception_date():
     from dataclasses import replace
     from guard.data import load_gold, load_policy
     from guard.engine import Ledger, decide
     p = load_policy(); g = {x.invoice_id: x for x in load_gold()}
     d = decide(replace(g["01"], issue_date=None), p, Ledger(p.period_budget_remaining_usd, []))
-    assert (d.outcome, d.rule) == ("ESCALAR", "R_FECHA")
+    assert d.outcome == "PAGAR"

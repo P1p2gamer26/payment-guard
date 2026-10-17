@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-msg_vrtx_011Cg7x1JsoZ1uofYUYjdFJT",
+  "object": "chat.completion",
+  "created": 1792246487,
+  "model": "claude-sonnet-4-6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"beneficiary_name\": \"Mariana Ixtapa Prueba\",\n  \"beneficiary_id\": \"FICT020202BB2\",\n  \"amount\": \"27000.00\",\n  \"currency\": \"MXN\",\n  \"issue_date\": \"2026-10-09\",\n  \"invoice_number\": \"H-0044\",\n  \"bank_account\": \"FICT-CLABE-0000000005\",\n  \"concept\": \"Servicios de QA - octubre 2026\"\n}\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2532,
+    "completion_tokens": 136,
+    "total_tokens": 2668
+  }
+}
