@@ -1,36 +1,53 @@
 {% extends "guard/base.html" %}
 
 {% block title %}Aprobaciones · Payment Guard{% endblock %}
+{% block crumbs %}<b>Aprobaciones</b>{% endblock %}
 
 {% block content %}
-<h1>Aprobaciones pendientes <span class="pv">política v{{ pv.version }}</span></h1>
+<div class="ph"><div><h1>Aprobaciones pendientes <span class="pv">política v{{ pv.version }}</span></h1><p class="lede" style="margin:0">Una persona puede aprobar lo escalado, con nota obligatoria. Aprobar vuelve a chequear los límites duros: beneficiario registrado, límite por pago y presupuesto que queda en ese momento. Quien solicitó el pago no puede aprobarlo.</p></div></div>
 
-{% for r in pendientes %}
-<article class="ticket ticket--pendiente">
-  <div class="ticket__cabecera">
-    <a class="ticket__id" href="{% url 'invoice_detail' r.invoice.invoice_id %}">{{ r.invoice.invoice_id }}</a>
-    <span class="stamp stamp--escalar">ESCALAR</span>
-    <span class="ticket__regla">{{ r.rule }}</span>
+<div class="kpis">
+  <div class="kpi"><div class="k">Por revisar</div><div class="v">{{ pendientes|length }}</div><div class="s">de {{ n_esc }} escaladas</div></div>
+  <div class="kpi"><div class="k">Aprobadas</div><div class="v">{{ n_ok }}</div><div class="s">generaron borrador</div></div>
+  <div class="kpi"><div class="k">Rechazadas</div><div class="v">{{ n_rech }}</div><div class="s">sin pago</div></div>
+  <div class="kpi"><div class="k">Presupuesto restante</div><div class="v">USD {{ presup.restante_txt }}</div><div class="s">se re-chequea al aprobar</div><div class="bar"><i class="w" style="width: {{ presup.gastado_pct|stringformat:'s' }}%"></i></div></div>
+</div>
+
+<div class="two">
+  <div class="card"><h3>Bandeja · escaladas por el motor</h3>
+    <div class="inbox">
+    {% for p in pendientes %}
+      <article class="appr ticket--pendiente">
+        <header><a class="nm" href="{% url 'invoice_detail' p.card.id %}">{{ p.card.name }}</a><span class="am">{{ p.card.amt_full }}{% if p.card.usd %} · ≈ {{ p.card.usd }}{% endif %}</span></header>
+        <p><span class="rulechip" data-d="ESCALAR">{{ p.rec.rule }}</span> <a href="{% url 'invoice_detail' p.card.id %}">#{{ p.card.id }}</a> · {{ p.rec.explanation }}</p>
+        <p class="solic">Solicitado por: <span class="mono">{{ p.card.req }}</span></p>
+        <div class="checks" aria-label="Re-chequeo de límites duros">{% for label, ok in p.checks %}<span class="chip noDot {% if ok %}okc{% else %}bad{% endif %}">{% if ok %}✓{% else %}✕{% endif %} {{ label }}</span>{% endfor %}</div>
+        <form class="form--aprobacion" method="post" action="{% url 'decide_approval' p.rec.pk %}">
+          {% csrf_token %}
+          <label class="fl" for="approver-{{ p.rec.pk }}">Aprueba</label>
+          <input class="in" id="approver-{{ p.rec.pk }}" name="approver" value="cfo@lumbre.example">
+          <label class="fl" for="note-{{ p.rec.pk }}">Nota (obligatoria)</label>
+          <textarea id="note-{{ p.rec.pk }}" name="note" rows="2" required placeholder="Por qué apruebas o rechazas"></textarea>
+          <div class="row"><button class="btn acc sm" type="submit" name="action" value="aprobar">Aprobar</button><button class="btn ghost sm" type="submit" name="action" value="rechazar">Rechazar</button><a class="btn ghost sm" href="{% url 'library' %}?id={{ p.card.id }}">Ver documento</a></div>
+        </form>
+      </article>
+    {% empty %}
+      <p class="vacio">No hay escalados pendientes de aprobación.</p>
+    {% endfor %}
+    {% for x in resueltas %}
+      <article class="appr {% if x.ap.outcome == 'APROBADO' %}done{% else %}rej{% endif %}">
+        <header><a class="nm" href="{% url 'invoice_detail' x.card.id %}">{{ x.card.name }}</a><span class="am">{{ x.card.amt_full }}</span></header>
+        <p><span class="rulechip" data-d="ESCALAR">{{ x.rec.rule }}</span> #{{ x.card.id }} · solicitado por {{ x.card.req }}</p>
+        <div class="msg {% if x.ap.outcome == 'APROBADO' %}good{% else %}bad{% endif %}">{% if x.ap.outcome == 'APROBADO' %}Aprobada · borrador generado{% else %}Rechazada · sin pago{% endif %} · {{ x.ap.approver }} · «{{ x.ap.note }}»</div>
+      </article>
+    {% endfor %}
+    </div>
   </div>
-  <p class="ticket__explicacion">{{ r.explanation }}</p>
-
-  <form class="form form--aprobacion" method="post" action="{% url 'decide_approval' r.pk %}">
-    {% csrf_token %}
-    <div class="form__campo">
-      <label for="approver-{{ r.pk }}">Aprueba</label>
-      <input id="approver-{{ r.pk }}" name="approver" value="cfo@lumbre.example">
-    </div>
-    <div class="form__campo">
-      <label for="note-{{ r.pk }}">Nota (obligatoria)</label>
-      <textarea id="note-{{ r.pk }}" name="note" rows="2" required></textarea>
-    </div>
-    <div class="form__acciones">
-      <button type="submit" name="action" value="aprobar">Aprobar</button>
-      <button type="submit" name="action" value="rechazar" class="boton--secundario">Rechazar</button>
-    </div>
-  </form>
-</article>
-{% empty %}
-<p class="vacio">No hay escalados pendientes de aprobación.</p>
-{% endfor %}
+  <div class="card"><h3>Borrador compatible con la API de Blinka</h3>
+    {% if draft_json %}<div class="draft" aria-live="polite"><span class="dstamp">DRAFT · NOT EXECUTED</span><pre class="draftpre">{{ draft_json }}</pre></div><p class="note">Último borrador: factura #{{ draft_de }}.</p>
+    {% else %}<div class="draft"><span class="dstamp">DRAFT · NOT EXECUTED</span><pre class="draftpre">Aún no hay borradores: aprueba una escalada para generar el primero.</pre></div>{% endif %}
+    <div class="budget">Presupuesto restante: USD {{ presup.restante_txt }} de USD {{ presup.mensual_txt }}.</div>
+    <p class="note">El borrador usa siempre la cuenta del registro maestro, nunca la de la factura. Estado <span class="mono">draft_not_executed</span>: no mueve dinero.</p>
+  </div>
+</div>
 {% endblock %}

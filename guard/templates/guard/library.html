@@ -1,0 +1,88 @@
+{% extends "guard/base.html" %}
+
+{% block title %}Biblioteca de facturas · Payment Guard{% endblock %}
+{% block crumbs %}<b>Biblioteca de facturas</b>{% endblock %}
+
+{% block content %}
+{% with ex=rec.invoice.extraction %}
+<div class="ph"><div><h1>Biblioteca de facturas</h1><p class="lede" style="margin:0">Del documento a la decisión. Cada campo conserva su origen: haz clic en un campo y se ilumina en el original.</p></div>
+  <div class="btns"><a class="btn ghost" href="{% url 'log' %}?format=csv">Exportar registro (CSV)</a></div></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k">Documentos del ciclo</div><div class="v">{{ kpi.docs }}</div><div class="s">correo, chat, CFDI y cuentas de cobro</div></div>
+  <div class="kpi"><div class="k">Lecturas por confirmar</div><div class="v">{{ kpi.por_confirmar }}</div><div class="s">el regex se abstiene; el LLM manda</div></div>
+  <div class="kpi"><div class="k">Requieren una persona</div><div class="v">{{ kpi.pend }}</div><div class="s">excepciones escaladas por el motor</div></div>
+  <div class="kpi"><div class="k">Pagadas dentro de reglas</div><div class="v">USD {{ kpi.pagadas_usd }}</div><div class="s">{{ kpi.pagadas_n }} facturas · sin intervención</div></div>
+</div>
+
+<div class="toolbar">
+  <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><label class="sr" for="q">Buscar factura o proveedor</label><input id="q" type="search" placeholder="Buscar factura, beneficiario o archivo…" autocomplete="off"></div>
+  <label class="sr" for="fEst">Estado</label><select id="fEst"><option value="">Todos los estados</option><option>PAGAR</option><option>FRENAR</option><option>ESCALAR</option></select>
+  <label class="sr" for="fFmt">Formato</label><select id="fFmt"><option value="">Todos los formatos</option><option value="correo">Correo</option><option value="chat">Chat</option><option value="cfdi">CFDI (JSON)</option><option value="hoja">Cuenta de cobro / factura</option></select>
+</div>
+<div class="sec" style="padding:0">Rutas de recepción · ejemplo, sin conectores activos</div>
+<div class="routes" id="routes" style="margin-top:6px">{% for r in rutas %}<button type="button" data-r="{{ r.n }}" aria-pressed="false">{{ r.n }}<b>{{ r.c }}</b></button>{% endfor %}</div>
+
+<div class="lib">
+  <div class="dlist"><div class="pane-h"><span>Documentos del ciclo</span><span id="dcount">{{ cards|length }} de {{ cards|length }}</span></div>
+    <ul id="dl">
+    {% for c in cards %}
+      <li data-q="{{ c.q }}" data-d="{{ c.outcome }}" data-kind="{{ c.kind }}" data-route="{{ c.route }}"><a class="di" href="?id={{ c.id }}" {% if c.id == sel.id %}aria-current="true"{% endif %}>
+        <span class="fmt">{{ c.kl }}</span><span class="nm">{{ c.name }}</span><span class="dt">{{ c.issue|slice:"5:" }}</span>
+        <span class="sb">#{{ c.id }} · {{ c.cur }} · {{ c.route }}</span><span class="am">{{ c.amt }}{% if c.cur != 'USD' %} {{ c.cur }}{% endif %}</span><span class="chip {{ c.d }}">{{ c.label }}</span></a></li>
+    {% endfor %}
+      <li class="empty" id="dempty" hidden>Ningún documento coincide con los filtros.</li>
+    </ul></div>
+
+  <div class="docpane">
+    <div class="dochead"><div class="t"><div><b>{{ sel.name }}</b><div class="f">{{ sel.file }} · #{{ sel.id }}</div></div><span class="chip {{ sel.d }}">{{ sel.label }}</span></div>
+      <div class="trail"><span>{{ sel.route }}</span><span>{{ sel.kn }}</span><span>lector LLM</span><span>doble llave</span><span>reglas</span></div></div>
+    <div class="docscroll" id="doc"><div class="paper {{ sel.kind }}"><div class="bar"><span>{{ sel.kn }}</span><span>{{ sel.route }}</span></div><div class="body">
+      {% for l in doc %}<div class="ln"><i>{{ l.n }}</i><span>{% for s in l.segs %}{% if s.k %}<mark data-k="{{ s.k }}" tabindex="0">{{ s.t }}</mark>{% else %}{{ s.t }}{% endif %}{% endfor %}</span></div>{% endfor %}
+    </div></div></div>
+    <div class="pfoot"><span>Original conservado · texto tal como llegó</span><span>{{ doc|length }} líneas</span></div>
+  </div>
+
+  <div class="rp">
+    <div class="stepper" id="stepper" role="tablist" aria-label="Pasos de la decisión">
+      {% for p in pasos %}<button type="button" role="tab" aria-selected="{% if forloop.counter == paso %}true{% else %}false{% endif %}" data-s="{{ forloop.counter }}"><b>{{ forloop.counter }}</b>{{ p }}</button>{% endfor %}
+    </div>
+    <div class="rbody" id="rbody" data-d="{{ sel.d }}">
+      <div data-step="1"{% if paso != 1 %} hidden{% endif %}>
+        <dl class="kv"><dt>Archivo</dt><dd>{{ sel.file }}</dd><dt>Formato</dt><dd>{{ sel.kn }}</dd><dt>Ruta de recepción</dt><dd>{{ sel.route }} (ejemplo)</dd><dt>Fecha en el documento</dt><dd>{{ sel.issue|default:"—" }}</dd><dt>Líneas</dt><dd>{{ doc|length }}</dd><dt>Solicitado por</dt><dd>{{ sel.req }}</dd><dt>Original</dt><dd>conservado, sin modificar</dd></dl>
+        <p class="note">El texto de la factura es dato, no instrucción: ninguna frase del documento puede cambiar las reglas.</p>
+        {% if sospechoso %}<p class="note warn"><b>Atención:</b> el documento trae texto que intenta alterar las reglas. El LLM lo ignora; la regla R_SOSPECHA lo detecta en código.</p>{% endif %}
+      </div>
+      <div data-step="2"{% if paso != 2 %} hidden{% endif %}>
+        {% for f in campos %}
+        <button type="button" class="fld" data-k="{{ f.k }}" aria-pressed="false"><span class="l">{{ f.label }}</span><span class="v">{{ f.value }}</span>
+          <span class="ev">{% if f.ev %}Origen: <b>«{{ f.ev.needle }}»</b> · línea {{ f.ev.line }}{% else %}Sin evidencia directa en el documento: el valor no aparece literal{% endif %} · confianza {{ ex.confidence|default:"—" }}</span></button>
+        {% endfor %}
+        <div class="evsum"><span class="chip {% if con_evidencia %}PAGAR{% else %}n{% endif %} noDot">{{ con_evidencia }} de {{ total_campos }} con evidencia</span></div>
+      </div>
+      <div data-step="3"{% if paso != 3 %} hidden{% endif %}>
+        <svg class="keysvg" width="220" height="60" viewBox="0 0 220 60" aria-hidden="true"><g fill="none" stroke-width="3" stroke-linecap="round"><circle cx="30" cy="30" r="12" stroke="var(--ac)"/><path d="M42 30h60M88 30v10M98 30v7" stroke="var(--ac)"/><circle cx="190" cy="30" r="12" stroke="var(--ac2)"/>{% if lectura.coincide %}<path d="M178 30h-60M132 30v10M122 30v7" stroke="var(--ac2)"/>{% else %}<path d="M178 30h-36M150 30v-10M160 30v-7" stroke="var(--ac2)" stroke-dasharray="4 4"/>{% endif %}</g><circle cx="110" cy="30" r="5" fill="{% if lectura.coincide %}var(--pay){% else %}var(--esc){% endif %}"/></svg>
+        <div class="cmp"><div><div class="h">LLM extrae</div><div class="v">{{ sel.amt_full }}</div></div><div><div class="h">Regex lee</div><div class="v">{% if lectura.hay %}{{ lectura.txt }}{% else %}se abstiene{% endif %}</div></div></div>
+        {% if lectura.coincide %}<span class="chip PAGAR">Coinciden · llave encajada</span>{% elif lectura.hay %}<span class="chip ESCALAR">El regex contradice al LLM</span>{% else %}<span class="chip ESCALAR">Regex se abstiene · no contradice</span>{% endif %}
+        <p class="note">R_DOBLE_LECTURA solo escala cuando el regex <b>contradice</b> al LLM en monto o moneda. Si no puede leer, se abstiene y las demás reglas siguen protegiendo.</p>
+      </div>
+      <div data-step="4"{% if paso != 4 %} hidden{% endif %}>
+        <ol class="path" style="--c:var(--{% if sel.outcome == 'PAGAR' %}pay{% elif sel.outcome == 'FRENAR' %}stop{% else %}esc{% endif %});--onc:var(--on{% if sel.outcome == 'PAGAR' %}pay{% elif sel.outcome == 'FRENAR' %}stop{% else %}esc{% endif %})">
+        {% for r in reglas %}<li class="{{ r.estado }}" title="{{ r.desc }}"><span class="dot">{% if r.estado == 'pass' %}✓{% else %}{{ r.n }}{% endif %}</span><span class="c">{{ r.nombre }}</span><span class="st">{{ r.txt }}</span></li>{% endfor %}
+        </ol>
+        {% if gauge %}<div class="gauge" style="--c:var(--{% if sel.outcome == 'PAGAR' %}pay{% elif sel.outcome == 'FRENAR' %}stop{% else %}esc{% endif %})"><div class="lbl"><span>Valor vs límite</span><span>{{ gauge.usd }} · {{ gauge.txt }}</span></div>
+          <div class="track"><div class="fill" style="width: {{ gauge.fill|stringformat:'s' }}%"></div><div class="mk" style="left: {{ gauge.umb|stringformat:'s' }}%"><span>umbral {{ gauge.umb_txt }}</span></div><div class="mk hi" style="left: {{ gauge.lim|stringformat:'s' }}%"><span>límite {{ gauge.lim_txt }}</span></div></div></div>{% endif %}
+      </div>
+      <div data-step="5"{% if paso != 5 %} hidden{% endif %}>
+        <div class="ticket" data-d="{{ sel.d }}"><div class="tkh"><div><div class="hash">FACTURA #{{ sel.id }} · {{ sel.kn|upper }}</div><b class="tkn">{{ sel.name }}</b></div><span class="stamp">{{ sel.d }}</span></div>
+          <div class="amt">{{ sel.amt_full }}</div><div class="hash">{% if sel.usd %}≈ {{ sel.usd }}{% else %}moneda no permitida: sin conversión{% endif %}</div>
+          <p class="why"><span class="rulechip" data-d="{{ sel.outcome }}">{{ sel.rule }}</span> {{ rec.explanation }}</p>
+          {% if sel.outcome == 'ESCALAR' %}<div class="tkx">{% if aprobacion %}<span class="chip {{ sel.d }}">{{ sel.label }}</span> <span class="hash">por {{ aprobacion.approver }} · «{{ aprobacion.note }}»</span>{% else %}<a class="btn acc sm" href="{% url 'inbox' %}">Ir a aprobaciones</a>{% endif %}</div>{% endif %}
+        </div>
+        <p class="note"><a href="{% url 'invoice_detail' sel.id %}">Ver recibo firmado, valores comparados y borrador</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}

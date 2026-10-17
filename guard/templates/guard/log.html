@@ -1,45 +1,34 @@
 {% extends "guard/base.html" %}
 
 {% block title %}Registro · Payment Guard{% endblock %}
+{% block crumbs %}<b>Registro</b>{% endblock %}
 
 {% block content %}
-<h1>Registro <span class="pv">política v{{ pv.version }}</span></h1>
+<div class="ph"><div><h1>Registro de auditoría <span class="pv">política v{{ pv.version }}</span></h1><p class="lede" style="margin:0">Cada decisión, aprobación y rechazo queda con la política vigente y un hash encadenado (demostración).</p></div>
+  <div class="btns"><label class="sr" for="rgF">Filtrar eventos</label><select id="rgF"><option value="">Todos los eventos</option><option>decisión</option><option>aprobación</option><option>rechazo</option></select><a class="btn acc registro__acciones" href="?format=csv">Descargar CSV</a></div></div>
 
-<p class="registro__acciones"><a class="boton" href="?format=csv">Descargar CSV</a></p>
+<h2 class="h2s">Eventos</h2>
+<div class="tw"><table id="logt">
+  <thead><tr><th>Hora</th><th>Evento</th><th>Factura</th><th>Detalle</th><th>Política</th><th>Hash</th></tr></thead>
+  <tbody>
+  {% for e in eventos %}<tr data-ev="{{ e.evento }}"><td class="m">{{ e.hora }}</td><td><span class="chip n noDot">{{ e.evento }}</span></td><td class="m"><a href="{% url 'invoice_detail' e.factura %}">#{{ e.factura }}</a></td><td>{{ e.detalle }}</td><td class="m">v{{ e.version }}</td><td class="hash">{{ e.hash }}</td></tr>{% endfor %}
+  </tbody></table></div>
 
-<div class="tabla__scroll">
-  <table class="tabla">
-    <thead>
-      <tr>
-        <th>Factura</th>
-        <th>Beneficiario</th>
-        <th>Monto</th>
-        <th>Monto USD</th>
-        <th>Decisión</th>
-        <th>Regla</th>
-        <th>Explicación</th>
-        <th>Aprobación</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in filas %}
-      <tr>
-        <td><a href="{% url 'invoice_detail' f.invoice_id %}">{{ f.invoice_id }}</a></td>
-        <td>{{ f.beneficiario }}</td>
-        <td>{{ f.monto }} {{ f.moneda }}</td>
-        <td>{{ f.monto_usd }}</td>
-        <td><span class="stamp stamp--{{ f.decision|lower }}">{{ f.decision }}</span></td>
-        <td>{{ f.regla }}</td>
-        <td class="tabla__explicacion">{{ f.explicacion }}</td>
-        <td>
-          {% if f.aprobacion %}
-          {{ f.aprobacion }} · {{ f.aprobador }}
-          {% if f.nota %}<br><span class="tabla__nota">{{ f.nota }}</span>{% endif %}
-          {% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+<h2 class="h2s">Decisiones y explicación</h2>
+<div class="tw"><table class="tabla">
+  <thead><tr><th>Factura</th><th>Beneficiario</th><th>Monto</th><th>Monto USD</th><th>Decisión</th><th>Regla</th><th>Explicación</th><th>Aprobación</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+  <tr>
+    <td class="m"><a href="{% url 'invoice_detail' f.invoice_id %}">{{ f.invoice_id }}</a></td>
+    <td>{{ f.beneficiario }}</td>
+    <td class="m">{{ f.monto }} {{ f.moneda }}</td>
+    <td class="m">{{ f.monto_usd }}</td>
+    <td><span class="chip {{ f.decision }}">{{ f.decision }}</span></td>
+    <td class="m">{{ f.regla }}</td>
+    <td class="tabla__explicacion">{{ f.explicacion }}</td>
+    <td>{% if f.aprobacion %}{{ f.aprobacion }} · {{ f.aprobador }}{% if f.nota %}<br><span class="tabla__nota">{{ f.nota }}</span>{% endif %}{% else %}—{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody></table></div>
 {% endblock %}

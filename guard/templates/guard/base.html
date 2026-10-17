@@ -1,39 +1,62 @@
-{% load static %}
-<!doctype html>
-<html lang="es">
+{% load static %}<!doctype html>
+<html lang="es" data-palette="cobalto">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Payment Guard{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'guard/app.css' %}">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}Payment Guard{% endblock %}</title>
+<meta name="description" content="El LLM lee, el código decide: facturas de contratistas en LatAm, reglas en código, aprobación humana y borrador compatible con la API de Blinka.">
+<script>try{var d=document.documentElement,t=localStorage.getItem('pg-theme'),p=localStorage.getItem('pg-palette');if(t==='light'||t==='dark')d.dataset.theme=t;if(p==='cobalto'||p==='ciruela'||p==='laton')d.dataset.palette=p}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'guard/app.css' %}">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{% url 'board' %}">Payment Guard</a>
-    <nav class="nav" aria-label="Principal">
-      <a href="{% url 'board' %}">Tablero</a>
-      <a href="{% url 'inbox' %}">Aprobaciones</a>
-      <a href="{% url 'rules' %}">Reglas</a>
-      <a href="{% url 'log' %}">Registro</a>
-    </nav>
-    <form class="reset" method="post" action="{% url 'reset_demo' %}">
-      {% csrf_token %}
-      <button type="submit">Reiniciar demo</button>
-    </form>
-  </header>
-
-  {% if messages %}
-  <ul class="messages">
-    {% for m in messages %}
-    <li class="message message--{{ m.tags }}">{{ m }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-
-  <main class="content">
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="footer">Datos 100% ficticios · decide el codigo, no el modelo</footer>
+<a class="skip" href="#page">Ir al contenido</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.8 2.8L16 9.5"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+<symbol id="i-log" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></symbol>
+</defs></svg>
+{% with u=request.resolver_match.url_name %}
+<div class="app">
+<aside class="side" aria-label="Navegación principal">
+  <a class="brand" href="{% url 'board' %}" aria-label="Payment Guard">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5 20 5.6v6.1c0 4.7-3.2 8.2-8 9.8-4.8-1.6-8-5.1-8-9.8V5.6l8-3.1Z" stroke="currentColor" stroke-width="1.8"/><path d="m8.2 12.2 2.6 2.6 5-5.3" stroke="var(--ac)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Payment Guard</a>
+  <div class="ws"><div class="av">LA</div><div><b>Lumbre Analytics, Inc.</b><span>Workspace corporativo · ficticio</span></div></div>
+  <div><div class="sec">Cuentas por pagar</div>
+  <nav class="nav" aria-label="Secciones">
+    <a href="{% url 'board' %}"{% if u == 'board' %} aria-current="page"{% endif %}><svg><use href="#i-grid"/></svg>Centro de decisiones</a>
+    <a href="{% url 'library' %}"{% if u == 'library' or u == 'invoice_detail' or u == 'tamper_receipt' %} aria-current="page"{% endif %}><svg><use href="#i-doc"/></svg>Biblioteca de facturas<span class="cnt">25</span></a>
+    <a href="{% url 'inbox' %}"{% if u == 'inbox' %} aria-current="page"{% endif %}><svg><use href="#i-check"/></svg>Aprobaciones<span class="cnt{% if nav_pendientes %} hot{% endif %}">{{ nav_pendientes }}</span></a>
+    <a href="{% url 'rules' %}"{% if u == 'rules' %} aria-current="page"{% endif %}><svg><use href="#i-sliders"/></svg>Reglas y parámetros</a>
+    <a href="{% url 'log' %}"{% if u == 'log' %} aria-current="page"{% endif %}><svg><use href="#i-log"/></svg>Registro</a>
+  </nav></div>
+  <div class="cycle"><div class="sec" style="padding:0">Ciclo activo</div><b>Octubre 2026</b><span class="open">ABIERTO</span><p>Documentos, decisiones y evidencia en un mismo lugar.</p></div>
+  <div class="foot">Datos 100 % ficticios. El agente nunca mueve dinero: deja borradores.</div>
+</aside>
+<div class="main">
+<header class="topbar">
+  <div class="crumbs"><span class="x">Lumbre Analytics</span><i class="x">/</i><span class="x">Cuentas por pagar</span><i class="x">/</i>{% block crumbs %}<b>Centro de decisiones</b>{% endblock %}</div><span class="sp"></span>
+  <span class="meta-top">USD · 01–31 oct · política v{{ nav_pv }}</span>
+  <div class="pal" role="group" aria-label="Paleta de color"><button type="button" data-p="cobalto" aria-label="Paleta Cobalto" title="Cobalto"><i></i></button><button type="button" data-p="ciruela" aria-label="Paleta Ciruela" title="Ciruela"><i></i></button><button type="button" data-p="laton" aria-label="Paleta Latón" title="Latón"><i></i></button></div>
+  <button class="ib" id="theme" type="button" aria-label="Cambiar entre tema claro y oscuro"><span id="themeTxt">Tema</span></button>
+  <form class="reset" method="post" action="{% url 'reset_demo' %}">{% csrf_token %}<button class="ib" type="submit">Reiniciar demo</button></form>
+</header>
+<main class="page" id="page">
+{% if messages %}
+<ul class="msgs">
+  {% for m in messages %}<li class="msgbox {{ m.tags }}" role="status">{{ m }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% block content %}{% endblock %}
+<footer><span>Payment Guard · demo para el reto Blinka · borrador compatible con la API de Blinka, sin afiliación</span><span class="mono">draft_not_executed</span></footer>
+</main></div></div>
+{% endwith %}
+{% block scripts %}{% endblock %}
+<script src="{% static 'guard/app.js' %}" defer></script>
 </body>
 </html>

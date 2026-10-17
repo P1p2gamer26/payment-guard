@@ -1,46 +1,44 @@
 {% extends "guard/base.html" %}
 
-{% block title %}Reglas · Payment Guard{% endblock %}
+{% block title %}Reglas y parámetros · Payment Guard{% endblock %}
+{% block crumbs %}<b>Reglas y parámetros</b>{% endblock %}
 
 {% block content %}
-<h1>Reglas <span class="pv">política v{{ pv.version }}</span></h1>
+<div class="ph"><div><h1>Reglas y parámetros <span class="pv">política v{{ pv.version }}</span></h1><p class="lede" style="margin:0">Políticas explícitas, en código. Guardar un parámetro crea una nueva versión y reprocesa las facturas; las decisiones viejas conservan su versión.</p></div></div>
 
-<form class="form" method="post">
-  {% csrf_token %}
-  <div class="form__campo">
-    <label for="limite_por_pago">Límite por pago (USD)</label>
-    <input id="limite_por_pago" name="limite_por_pago" value="{{ form.limite_por_pago }}" inputmode="decimal" required>
+<div class="cols2" style="margin-top:8px">
+  <div class="card"><h3>Mandato de la empresa · v{{ pv.version }}</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="pform c2">
+        <label for="limite_por_pago">Límite por pago (USD)<input id="limite_por_pago" name="limite_por_pago" value="{{ form.limite_por_pago }}" inputmode="decimal" required></label>
+        <label for="umbral_aprobacion">Umbral de aprobación (USD)<input id="umbral_aprobacion" name="umbral_aprobacion" value="{{ form.umbral_aprobacion }}" inputmode="decimal" required></label>
+        <label for="monedas">Monedas permitidas (coma-separadas, ISO 3 letras)<input id="monedas" name="monedas" value="{{ form.monedas }}" required></label>
+        <label for="tolerancia">Tolerancia de contrato (%)<input id="tolerancia" name="tolerancia" value="{{ form.tolerancia }}" inputmode="decimal" required></label>
+      </div>
+      <div class="btns" style="margin-top:14px"><button class="btn acc" type="submit">Guardar y reprocesar</button></div>
+      <p class="note">Guardar crea una versión nueva de la política y reprocesa las 25 facturas; las decisiones viejas conservan su versión.</p>
+    </form>
+    <form method="post" action="{% url 'aplicar_mandato_v2' %}" style="margin-top:14px">
+      {% csrf_token %}
+      <button class="btn ghost" type="submit">Aplicar mandato v2 (cierra huecos de la arena)</button>
+      <p class="note">Activa anti-fraccionamiento y normalización unicode como política nueva y reprocesa.</p>
+    </form>
   </div>
-  <div class="form__campo">
-    <label for="umbral_aprobacion">Umbral de aprobación (USD)</label>
-    <input id="umbral_aprobacion" name="umbral_aprobacion" value="{{ form.umbral_aprobacion }}" inputmode="decimal" required>
-  </div>
-  <div class="form__campo">
-    <label for="monedas">Monedas permitidas (coma-separadas, ISO 3 letras)</label>
-    <input id="monedas" name="monedas" value="{{ form.monedas }}" required>
-  </div>
-  <div class="form__campo">
-    <label for="tolerancia">Tolerancia de contrato (%)</label>
-    <input id="tolerancia" name="tolerancia" value="{{ form.tolerancia }}" inputmode="decimal" required>
-  </div>
-  <button type="submit">Guardar y reprocesar</button>
-  <p class="form__nota">Guardar crea una versión nueva de la política y reprocesa las 25 facturas; las decisiones viejas conservan su versión.</p>
-</form>
-
-<form class="form" method="post" action="{% url 'aplicar_mandato_v2' %}">
-  {% csrf_token %}
-  <button type="submit">Aplicar mandato v2 (cierra huecos de la arena)</button>
-  <p class="form__nota">Activa anti-fraccionamiento y normalización unicode como política nueva y reprocesa.</p>
-</form>
-
-<section>
-  <h2>Historial de versiones</h2>
-  <ul class="versiones">
+  <div class="card"><h3>Versiones</h3>
+    <ul class="vers versiones">
     {% for v in versiones %}
-    <li class="version{% if v.actual %} version--actual{% endif %}">
-      v{{ v.version }} · {{ v.created_at|date:"Y-m-d H:i" }}{% if v.actual %} · actual{% endif %}
-    </li>
+      <li class="version{% if v.actual %} version--actual cur{% endif %}"><span><b>v{{ v.version }}</b> · {{ v.created_at|date:"Y-m-d H:i" }}{% if v.v2 %} · mandato v2{% endif %}{% if v.actual %} · actual{% endif %}</span><span class="mono">límite {{ v.limite }} · umbral {{ v.umbral }}</span></li>
     {% endfor %}
-  </ul>
-</section>
+    </ul>
+    <p class="note">Las decisiones viejas conservan la versión con la que se tomaron.</p></div>
+</div>
+
+<div class="card" style="margin-top:14px"><h3>Las {{ total_reglas }} reglas, en orden · la primera que dispara gana</h3>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Regla</th><th>Dispara cuando</th><th>Resultado</th><th>Parámetro</th><th>Facturas</th></tr></thead>
+    <tbody>
+    {% for r in tabla %}<tr><td class="m">{{ r.n }}</td><td class="m">{{ r.nombre }}</td><td>{{ r.desc }}</td><td><span class="chip {{ r.res }}">{{ r.res }}</span></td><td class="m">{{ r.param }}</td><td class="m">{{ r.facturas }}</td></tr>{% endfor %}
+    </tbody></table></div>
+</div>
 {% endblock %}

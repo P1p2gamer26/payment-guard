@@ -1,11 +1,43 @@
 {% extends "guard/base.html" %}
+{% load static %}
 
-{% block title %}Tablero · Payment Guard{% endblock %}
+{% block title %}Centro de decisiones · Payment Guard{% endblock %}
 
 {% block content %}
-<h1>Tablero <span class="pv">política v{{ pv.version }}</span></h1>
+<div class="ph"><div><div class="eyebrow">Hackathon 30X · Reto Blinka · <span class="pv">política v{{ pv.version }}</span></div><h1>El LLM lee. El código decide.</h1>
+  <p class="lede">Payment Guard revisa cada factura de contratistas en LatAm contra {{ total }} documentos y reglas en código, cita la que decidió y deja el pago en borrador hasta que una persona lo apruebe.</p></div>
+  <div class="btns"><a class="btn ghost" href="{% url 'library' %}">Abrir biblioteca</a><a class="btn acc" href="{% url 'inbox' %}">Revisar {{ pendientes }} excepciones</a></div></div>
+
+<div class="stagewrap">
+  <div class="stage" id="stage" role="img" aria-label="Animación del flujo: facturas en sobre, chat u hoja entran; un LLM extrae los campos; dos llaves verifican monto y moneda; un túnel de reglas decide; los resultados se separan en PAGAR, FRENAR y ESCALAR; lo escalado pasa por una persona y produce un borrador que no mueve dinero.">
+    <div class="fb" id="fb" aria-hidden="true"><svg viewBox="0 0 1000 380" font-family="Geist, sans-serif">
+      <g stroke="var(--line)" stroke-width="2" fill="none"><path d="M40 190H560M560 190L700 90H900M560 190H900M560 190L700 290H830"/></g>
+      <g font-size="15" font-weight="600" fill="var(--ink)" text-anchor="middle">
+        <rect x="30" y="160" width="70" height="60" rx="2" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><text x="65" y="252">Facturas</text>
+        <circle cx="190" cy="190" r="30" fill="var(--acbg)" stroke="var(--ac)" stroke-width="3"/><text x="190" y="246">LLM extrae</text>
+        <g fill="none" stroke-width="3"><circle cx="320" cy="190" r="24" stroke="var(--ac)"/><circle cx="352" cy="190" r="24" stroke="var(--ac2)"/></g><text x="336" y="246">Doble llave</text>
+        <rect x="450" y="140" width="110" height="100" rx="2" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><text x="505" y="266">Reglas</text>
+        <text x="930" y="96" fill="var(--pay)">PAGAR</text><text x="930" y="196" fill="var(--stop)">FRENAR</text><text x="930" y="296" fill="var(--esc)">ESCALAR</text></g></svg></div>
+  </div>
+  <div class="live" aria-live="off"><span class="dot"></span><span id="liveTxt">Procesando el lote de {{ total }} facturas del demo</span><span class="sp"></span><span id="stageNote">Escena 3D</span></div>
+</div>
+<ol class="steps5">
+  <li><span class="n">01</span><b>Entra la factura</b>Correo, chat, CFDI o cuenta de cobro: se trata como dato, no como instrucción.</li>
+  <li><span class="n">02</span><b>El LLM extrae</b>Monto, moneda, cuenta, beneficiario. Nunca decide.</li>
+  <li><span class="n">03</span><b>Doble llave</b>Una segunda lectura por regex debe coincidir o abstenerse.</li>
+  <li><span class="n">04</span><b>Reglas en código</b>Default-deny; la primera que dispara gana.</li>
+  <li><span class="n">05</span><b>Persona y borrador</b>Lo escalado se aprueba con nota y sale como <span class="mono">draft_not_executed</span>.</li>
+</ol>
+
+<div class="kpis">
+  <div class="kpi"><div class="k">Autonomía</div><div class="v">{{ autonomia }}%</div><div class="s" title="Autonomía = (PAGAR + FRENAR) / total de facturas: decisiones tomadas por el código sin intervención humana.">{{ counts.PAGAR }} pagar + {{ counts.FRENAR }} frenar de {{ total }} sin intervención</div><div class="bar"><i style="width: {{ autonomia }}%"></i></div></div>
+  <div class="kpi"><div class="k">Pagos indebidos</div><div class="v{% if indebidos == 0 %} good{% endif %}">{{ indebidos }}</div><div class="s">Pagos indebidos: {{ indebidos }}{% if coincide is not None %} · Coinciden con esperado: {{ coincide }}/{{ total }}{% endif %}</div></div>
+  <div class="kpi"><div class="k">Presupuesto restante</div><div class="v">USD {{ presup.restante_txt }}</div><div class="s">de USD {{ presup.mensual_txt }} · gastado {{ presup.gastado_txt }}</div><div class="bar"><i class="w" style="width: {{ presup.gastado_pct|stringformat:'s' }}%"></i></div></div>
+  <div class="kpi"><div class="k">Doble lectura</div><div class="v">{{ doble.coinciden }}<span class="vs"> / {{ total }}</span></div><div class="s">coinciden · {{ doble.abstiene }} se abstiene · {{ doble.contradice }} contradice</div></div>
+</div>
 
 <section class="arena{% if arena and arena.indebidos == 0 %} arena--ok{% elif arena %} arena--mal{% endif %}" aria-label="Arena">
+  <div>
   {% if arena %}
   <p class="arena__titulo">Arena: {{ arena.indebidos }} pagos indebidos de {{ arena.total }} ataques (política v{{ arena.policy_version.version }})</p>
   <ul class="arena__cats">
@@ -16,57 +48,30 @@
   {% else %}
   <p class="arena__titulo">Arena: aún no corrida para la política v{{ pv.version }}</p>
   {% endif %}
-  <form method="post" action="{% url 'correr_arena' %}">{% csrf_token %}<button type="submit">Correr arena</button></form>
-</section>
-
-<section class="metrics" aria-label="Metricas">
-  {% for d, n in counts.items %}
-  <div class="metric metric--{{ d|lower }}">
-    <span class="metric__label">{{ d }}</span>
-    <span class="metric__value">{{ n }}</span>
   </div>
-  {% endfor %}
-
-  <div class="metric metric--gauge">
-    <span class="metric__label">Autonomía</span>
-    <span class="metric__value">{{ autonomia }}%</span>
-    <div class="gauge"><span class="gauge__fill" style="width: {{ autonomia }}%"></span></div>
-  </div>
-
-  <div class="metric metric--texto">
-    <span class="metric__nota">Pagos indebidos: {{ indebidos }}</span>
-  </div>
-
-  {% if coincide is not None %}
-  <div class="metric metric--texto">
-    <span class="metric__nota">Coinciden con esperado: {{ coincide }}/25</span>
-  </div>
-  {% endif %}
-
-  <div class="metric">
-    <span class="metric__label">Presupuesto restante</span>
-    <span class="metric__value">USD {{ restante }}</span>
-  </div>
+  <form method="post" action="{% url 'correr_arena' %}">{% csrf_token %}<button class="btn acc" type="submit">Correr arena</button></form>
 </section>
 
 <div class="board">
   {% for lane in lanes %}
-  <section class="lane lane--{{ lane.key|lower }}">
-    <h2 class="lane__titulo">{{ lane.key }} <span class="lane__conteo">{{ lane.tickets|length }}</span></h2>
+  <section class="lane" data-d="{{ lane.key }}">
+    <h3>{{ lane.key }}<span class="cnt">{{ lane.tickets|length }}</span></h3>
+    <p class="def">{% if lane.key == 'PAGAR' %}dentro de reglas · se pagan solas{% elif lane.key == 'FRENAR' %}inválido, sin discusión{% else %}una persona decide{% endif %}</p>
+    <ul>
     {% for t in lane.tickets %}
-    <article class="ticket">
-      <div class="ticket__cabecera">
-        <a class="ticket__id" href="{% url 'invoice_detail' t.id %}">{{ t.id }}</a>
-        <span class="stamp stamp--{{ t.outcome|lower }}">{{ t.outcome }}</span>
-      </div>
-      <p class="ticket__beneficiario">{{ t.beneficiario }}</p>
-      <p class="ticket__monto">{{ t.monto }} {{ t.moneda }}</p>
-      <p class="ticket__regla">{{ t.regla }}</p>
-    </article>
+      <li><a class="tk{% if t.rule != 'OK' %} hot{% endif %}" href="{% url 'library' %}?id={{ t.id }}&amp;paso=5"><span class="id">#{{ t.id }}</span><span class="nm">{{ t.name }}</span><span class="am">{{ t.amt }} {{ t.cur }}</span><span class="ru">{{ t.rule }}{% if t.d != t.outcome %} · {{ t.label }}{% endif %}</span></a></li>
     {% empty %}
-    <p class="lane__vacia">Sin facturas en esta columna.</p>
+      <li class="lane__vacia">Sin facturas en esta columna.</li>
     {% endfor %}
+    </ul>
   </section>
   {% endfor %}
 </div>
+
+{{ escena|json_script:"scene-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
+<script src="{% static 'guard/flow3d.js' %}"></script>
 {% endblock %}

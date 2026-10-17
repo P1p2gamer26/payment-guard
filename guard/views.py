@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import io
 import json
 import re
@@ -7,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -14,9 +16,10 @@ from django.views.decorators.http import require_POST
 from .approval import approve, reject
 from .data import load_expected, load_policy
 from .domain import Extraction, Policy
-from .engine import RULES, Ledger, allowed_to_pay
+from .engine import Ledger, allowed_to_pay
 from .explain import explain
 from . import receipt as rcpt
+from . import ui
 from .models import Approval, DecisionRecord, Invoice, PolicyVersion, UsedNonce
 from .services import apply_mandato_v2, current_policy, run_arena, ensure_receipts, process_all, process_text, save_policy, spent_usd
 
@@ -68,36 +71,51 @@ def _pagos_indebidos(records, policy: Policy) -> int:
     return malos
 
 
-def board(request):
-    pv = ensure_processed()
+def _aprobaciones(records) -> dict:
+    return {a.decision_id: a for a in Approval.objects.filter(decision__in=[r.pk for r in records])}
+
+
+def _contexto_base(pv):
     policy = Policy(pv.raw, pv.version)
     records = _records(pv)
+    aprob = _aprobaciones(records)
+    restante = policy.period_budget_remaining_usd - spent_usd(pv)
+    mensual = Decimal(str(policy.raw["presupuesto"]["mensual_usd"]))
+    gastado = mensual - restante
+    pct = min(Decimal(100), max(Decimal(0), gastado / mensual * 100)) if mensual else Decimal(0)
+    return policy, records, aprob, restante, {
+        "restante_txt": ui.fmt_num(restante), "mensual_txt": ui.fmt_num(mensual),
+        "gastado_txt": ui.fmt_num(gastado), "gastado_pct": str(pct.quantize(Decimal("0.1"))),
+    }
+
+
+def _doble_lectura(records) -> dict:
+    ok = no = mal = 0
+    for r in records:
+        sr = ui.segunda_lectura(r, r.invoice.extraction or {})
+        if not sr["hay"]:
+            no += 1
+        elif sr["coincide"]:
+            ok += 1
+        else:
+            mal += 1
+    return {"coinciden": ok, "abstiene": no, "contradice": mal}
+
+
+def board(request):
+    pv = ensure_processed()
+    policy, records, aprob, restante, presup = _contexto_base(pv)
     counts = {d: sum(1 for r in records if r.outcome == d) for d in DECISIONES}
     total = len(records)
     autonomia = round((counts["PAGAR"] + counts["FRENAR"]) / total * 100) if total else 0
-    lanes = []
-    for d in DECISIONES:
-        tickets = []
-        for r in records:
-            if r.outcome != d:
-                continue
-            ex = _extraccion(r)
-            tickets.append(
-                {
-                    "id": r.invoice.invoice_id,
-                    "beneficiario": ex.get("beneficiary_name") or "—",
-                    "monto": ex.get("amount") or "—",
-                    "moneda": ex.get("currency") or "",
-                    "regla": r.rule,
-                    "outcome": r.outcome,
-                }
-            )
-        lanes.append({"key": d, "tickets": tickets})
+    lanes = [{"key": d, "tickets": [ui.card(r, aprob.get(r.pk)) for r in records if r.outcome == d]}
+             for d in DECISIONES]
     # la coincidencia con el esperado solo tiene sentido con la politica dorada
     coincide = None
     if pv.raw == load_policy().raw:
         esperado = load_expected()
         coincide = sum(1 for r in records if esperado.get(r.invoice.invoice_id) == r.outcome)
+    pendientes = sum(1 for r in records if r.outcome == "ESCALAR" and r.pk not in aprob)
     ctx = {
         "pv": pv,
         "lanes": lanes,
@@ -106,30 +124,70 @@ def board(request):
         "autonomia": autonomia,
         "indebidos": _pagos_indebidos(records, policy),
         "coincide": coincide,
-        "restante": policy.period_budget_remaining_usd - spent_usd(pv),
+        "restante": restante,
+        "presup": presup,
+        "doble": _doble_lectura(records),
+        "pendientes": pendientes,
+        "escena": ui.scene_items(records, policy, restante, aprob),
         "arena": pv.arena_runs.order_by("-created_at", "-id").first(),
     }
     return render(request, "guard/board.html", ctx)
 
 
+def library(request):
+    pv = ensure_processed()
+    policy, records, aprob, restante, presup = _contexto_base(pv)
+    cards = [ui.card(r, aprob.get(r.pk)) for r in records]
+    sel_id = request.GET.get("id") or ("25" if any(c["id"] == "25" for c in cards) else cards[0]["id"])
+    rec = next((r for r in records if r.invoice.invoice_id == sel_id), records[0])
+    sel = next(c for c in cards if c["id"] == rec.invoice.invoice_id)
+    ex = rec.invoice.extraction or {}
+    doc, ev = ui.build_doc(rec.invoice.text, ex)
+    paso = request.GET.get("paso", "2")
+    paso = int(paso) if paso in ("1", "2", "3", "4", "5") else 2
+    ap = aprob.get(rec.pk)
+    pagadas = [r for r in records if r.outcome == "PAGAR"]
+    campos = ui.campos(ex, ev)
+    pend = sum(1 for r in records if r.outcome == "ESCALAR" and r.pk not in aprob)
+    ctx = {
+        "pv": pv, "cards": cards, "sel": sel, "rec": rec, "doc": doc, "campos": campos,
+        "con_evidencia": sum(1 for c in campos if c["ev"]), "total_campos": len(campos),
+        "paso": paso, "rutas": [{"n": r, "c": sum(1 for c in cards if c["route"] == r)} for r in ui.RUTAS],
+        "lectura": ui.segunda_lectura(rec, ex), "reglas": ui.rule_path(rec, policy),
+        "gauge": ui.gauge(rec, policy), "aprobacion": ap,
+        "sospechoso": bool(ex.get("suspicious")) or rec.rule == "R_SOSPECHA",
+        "kpi": {"docs": len(cards), "por_confirmar": _doble_lectura(records)["abstiene"], "pend": pend,
+                "pagadas_n": len(pagadas),
+                "pagadas_usd": ui.fmt_num(sum((r.amount_usd or Decimal(0)) for r in pagadas))},
+        "pasos": ["Documento", "Extracción", "Doble llave", "Reglas", "Decisión"],
+    }
+    return render(request, "guard/library.html", ctx)
+
+
 def invoice_detail(request, invoice_id: str, tamper_error: str = ""):
     pv = ensure_processed()
+    policy = Policy(pv.raw, pv.version)
     invoice = get_object_or_404(Invoice, invoice_id=invoice_id)
     record = (
         DecisionRecord.objects.filter(invoice=invoice, policy_version=pv)
         .select_related("policy_version")
         .first()
     )
-    reglas = _rule_path(record)
+    ex = invoice.extraction or {}
+    doc, ev = ui.build_doc(invoice.text, ex)
     ctx = {
         "pv": pv,
         "invoice": invoice,
         "record": record,
-        "reglas": reglas,
+        "doc": doc,
+        "reglas": ui.rule_path(record, policy) if record else [],
+        "gauge": ui.gauge(record, policy) if record else None,
+        "campos": ui.campos(ex, ev),
         "facts_json": json.dumps(record.facts, indent=2, ensure_ascii=False, default=str) if record else "",
         "second_read": record.second_read if record else None,
         "aprobacion": _aprobacion(record) if record else None,
         "tamper_error": tamper_error,
+        "card": ui.card(record, _aprobacion(record)) if record else None,
     }
     if record and record.receipt:
         ok, motivo = rcpt.verify(record.receipt, check_nonce=False)
@@ -175,25 +233,6 @@ def tamper_receipt(request, invoice_id: str):
     except ValueError as e:
         return invoice_detail(request, invoice_id, tamper_error=str(e))
     return redirect("invoice_detail", invoice_id=invoice_id)  # ponytail: inalcanzable salvo monto igual al decidido
-
-
-def _rule_path(record) -> list[dict]:
-    """Reglas en orden; la que disparo queda .hit y las siguientes sin evaluar."""
-    hit = record.rule.lower() if record else None
-    hit_index = next((i for i, r in enumerate(RULES) if r.__name__ == hit), None)
-    todo_evaluado = record is not None and record.rule == "OK"
-    out = []
-    for i, rule in enumerate(RULES):
-        if hit_index is None:
-            estado = "evaluada" if (record is not None and todo_evaluado) else "no-evaluada"
-        elif i < hit_index:
-            estado = "evaluada"
-        elif i == hit_index:
-            estado = "hit"
-        else:
-            estado = "no-evaluada"
-        out.append({"nombre": rule.__name__, "estado": estado})
-    return out
 
 
 def _form_valores(raw: dict, data: dict | None = None) -> dict:
@@ -242,11 +281,7 @@ def rules(request):
         if errores:
             for e in errores:
                 messages.error(request, e)
-            return render(
-                request,
-                "guard/rules.html",
-                {"pv": pv, "form": datos, "versiones": _versiones(pv)},
-            )
+            return render(request, "guard/rules.html", _rules_ctx(pv, datos))
         raw = deepcopy(pv.raw)
         raw["reglas_pago"]["limite_por_pago_usd"] = str(limite)
         raw["reglas_pago"]["umbral_aprobacion_humana_usd"] = str(umbral)
@@ -256,28 +291,58 @@ def rules(request):
         process_all(nueva)
         messages.success(request, f"Reglas guardadas en la versión v{nueva.version}; 25 facturas reprocesadas.")
         return redirect("board")
-    return render(
-        request,
-        "guard/rules.html",
-        {"pv": pv, "form": _form_valores(pv.raw), "versiones": _versiones(pv)},
-    )
+    return render(request, "guard/rules.html", _rules_ctx(pv, _form_valores(pv.raw)))
+
+
+def _param_regla(nombre: str, policy: Policy) -> str:
+    return {
+        "R_LIMITE": f"USD {ui.fmt_num(policy.per_payment_limit_usd)}",
+        "R_UMBRAL": f"USD {ui.fmt_num(policy.approval_threshold_usd)}",
+        "R_PRESUPUESTO": f"USD {ui.fmt_num(policy.period_budget_remaining_usd)}",
+        "R_MONEDA": ", ".join(sorted(policy.allowed_currencies)),
+        "R_FECHA": f"{policy.max_age_days} días",
+        "R_CONTRATO": f"{policy.contract_tolerance_pct} %",
+        "R_BENEFICIARIO": "registro", "R_CUENTA": "registro", "R_DOBLE_LECTURA": "coincidir",
+    }.get(nombre, "—")
+
+
+def _rules_ctx(pv: PolicyVersion, form: dict) -> dict:
+    policy = Policy(pv.raw, pv.version)
+    cuentan = {}
+    for r in DecisionRecord.objects.filter(policy_version=pv).values_list("rule", flat=True):
+        cuentan[r] = cuentan.get(r, 0) + 1
+    tabla = [{"n": i + 1, "nombre": n, "desc": d, "res": res, "param": _param_regla(n, policy),
+              "facturas": cuentan.get(n, 0)} for i, (n, d, res) in enumerate(ui.reglas_de(policy))]
+    return {"pv": pv, "form": form, "versiones": _versiones(pv), "tabla": tabla, "total_reglas": len(tabla)}
 
 
 def _versiones(pv: PolicyVersion) -> list[dict]:
-    return [
-        {"version": v.version, "created_at": v.created_at, "actual": v.pk == pv.pk}
-        for v in PolicyVersion.objects.order_by("-version")
-    ]
+    out = []
+    for v in PolicyVersion.objects.order_by("-version"):
+        r = v.raw["reglas_pago"]
+        out.append({"version": v.version, "created_at": v.created_at, "actual": v.pk == pv.pk,
+                    "limite": ui.fmt_num(r["limite_por_pago_usd"]), "umbral": ui.fmt_num(r["umbral_aprobacion_humana_usd"]),
+                    "v2": bool(r.get("anti_fraccionamiento") or r.get("normalizar_unicode"))})
+    return out
 
 
 def inbox(request):
     pv = ensure_processed()
-    pendientes = (
-        DecisionRecord.objects.filter(policy_version=pv, outcome="ESCALAR", approval__isnull=True)
-        .select_related("invoice")
-        .order_by("invoice__invoice_id")
-    )
-    return render(request, "guard/inbox.html", {"pv": pv, "pendientes": pendientes})
+    policy, records, aprob, restante, presup = _contexto_base(pv)
+    pendientes = [{"rec": r, "card": ui.card(r), "checks": ui.recheck(r, policy, restante)}
+                  for r in records if r.outcome == "ESCALAR" and r.pk not in aprob]
+    resueltas = [{"rec": r, "card": ui.card(r, aprob[r.pk]), "ap": aprob[r.pk]}
+                 for r in records if r.pk in aprob]
+    ultimo = max((x for x in resueltas if x["ap"].draft), key=lambda x: x["ap"].created_at, default=None)
+    n_esc = sum(1 for r in records if r.outcome == "ESCALAR")
+    ctx = {
+        "pv": pv, "pendientes": pendientes, "resueltas": resueltas, "presup": presup,
+        "n_esc": n_esc, "n_ok": sum(1 for x in resueltas if x["ap"].outcome == "APROBADO"),
+        "n_rech": sum(1 for x in resueltas if x["ap"].outcome == "RECHAZADO"),
+        "draft_json": json.dumps(ultimo["ap"].draft, indent=2, ensure_ascii=False) if ultimo else "",
+        "draft_de": ultimo["card"]["id"] if ultimo else "",
+    }
+    return render(request, "guard/inbox.html", ctx)
 
 
 @require_POST
@@ -310,7 +375,27 @@ def log(request):
     filas = [_fila_log(r) for r in records]
     if request.GET.get("format") == "csv":
         return _csv_response(filas)
-    return render(request, "guard/log.html", {"pv": pv, "filas": filas, "registros": records})
+    return render(request, "guard/log.html", {"pv": pv, "filas": filas, "eventos": _eventos(records), "registros": records})
+
+
+def _eventos(records) -> list[dict]:
+    """Línea de tiempo de auditoría con hash encadenado (sha256 del evento + hash previo; demostración)."""
+    crudos = []
+    for r in records:
+        ex = _extraccion(r)
+        crudos.append((r.created_at, "decisión", r.invoice.invoice_id,
+                       f"{r.outcome} · {r.rule} · {ex.get('beneficiary_name') or '—'}", r.policy_version.version))
+        a = _aprobacion(r)
+        if a:
+            crudos.append((a.created_at, "aprobación" if a.outcome == "APROBADO" else "rechazo", r.invoice.invoice_id,
+                           f"{a.outcome.lower()} por {a.approver}", r.policy_version.version))
+    crudos.sort(key=lambda e: (e[0], e[2]))
+    prev, out = "", []
+    for ts, ev, inv, det, v in crudos:
+        prev = hashlib.sha256("|".join([prev, ts.isoformat(), ev, inv, det, str(v)]).encode()).hexdigest()
+        out.append({"hora": timezone.localtime(ts).strftime("%H:%M:%S"), "evento": ev, "factura": inv,
+                    "detalle": det, "version": v, "hash": prev[:8]})
+    return out
 
 
 def _fila_log(rec: DecisionRecord) -> dict:
