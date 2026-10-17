@@ -1,73 +1,53 @@
-# Payment Guard — DESIGN.md
+# Payment Guard — DESIGN.md (v2)
 
-Base elegida: **Mercury** de getdesign.md (https://getdesign.md/mercury/design-md), con tomas de **Linear** (https://getdesign.md/linear.app/design-md) para la bandeja y el detalle.
-Nota de fuente: de getdesign.md solo se pudo leer el resumen público de cada marca (Mercury: "un banco privado hecho software", base oscura tinta-violeta con transición a claro, un único acento de acción, tipografía sans a pesos ligeros; Linear: ultra-minimal, preciso, un acento). El DESIGN.md completo requiere descargar el archivo (`npx getdesign@latest add mercury`); no se hizo. Los tokens de abajo son nuestros, adaptados a la marca Blinka (navy `#04243C`, teal `#2B9CAE`).
-
-**Por qué Mercury**: es el referente de banca confiable y moderna: calma, un solo acento, oscuro-a-claro. Cambiamos el violeta por el navy/teal de Blinka y añadimos tres colores semánticos (PAGAR, FRENAR, ESCALAR) como únicos colores "ruidosos".
+Base: **Mercury** de getdesign.md (https://getdesign.md/mercury/design-md) para el tono (banca confiable, calma, un solo acento) y **Linear** (https://getdesign.md/linear.app/design-md) para la densidad de lista/detalle. Solo se pudo leer el resumen público de cada marca, no el DESIGN.md completo; los tokens son propios.
+Estructura de app inspirada en la referencia que compartió Julian (workspace con sidebar, biblioteca de 3 paneles con evidencia por campo). No se usa ni el nombre ni el logo de Blinka como producto: la marca es **Payment Guard**; el borrador se describe como "compatible con la API de Blinka".
 
 ## 1. Principios
-1. **Decisión primero.** Lo que importa (PAGAR/FRENAR/ESCALAR, regla citada, monto) se lee en 2 s. Todo lo demás es secundario.
-2. **El código decide, y se ve.** La regla que disparó es el elemento visual principal del detalle; las posteriores se atenúan ("no evaluada").
-3. **Color = significado.** Verde/rojo/ámbar solo para decisiones. Teal solo para "agente / flujo". Nada decorativo.
-4. **Mono para datos, sans para voz.** Montos, reglas, cuentas, ids en mono tabular.
-5. **Movimiento que explica.** Solo se anima flujo, estado o cambio de decisión.
+1. **Decisión primero**: PAGAR / FRENAR / ESCALAR, la regla citada y el monto se leen en 2 s.
+2. **El código decide, y se ve**: la regla que disparó es el centro del detalle; las posteriores quedan "no evaluadas".
+3. **Cada dato tiene origen**: todo campo extraído apunta a la línea del documento original.
+4. **Color = significado**: verde/rojo/ámbar solo para decisiones; el acento de marca solo para agente, foco y selección.
+5. **Mono para datos, sans para voz**; el movimiento solo explica flujo o cambio de estado.
 
-## 2. Color (tokens)
-| Token | Claro | Oscuro | Uso |
+## 2. Paletas (3, conmutables en el prototipo con el selector de círculos)
+Los tres tonos semánticos (PAGAR verde, FRENAR rojo, ESCALAR ámbar) se mantienen reconocibles en las tres; cambian el acento, los neutros y el segundo color de la "doble llave". Evitadas a propósito: navy+teal genérico, azul-morado, crema+terracota, negro+verde ácido.
+
+| | **A · Cobalto** (recomendada, por defecto) | B · Ciruela | C · Latón |
 |---|---|---|---|
-| `--bg` | `#F3F6F8` | `#04141F` | fondo de página |
-| `--surface` | `#FFFFFF` | `#0A2132` | tarjetas |
-| `--surface-2` | `#E9EFF3` | `#0F2D43` | hover, pistas, selección |
-| `--ink` | `#04243C` | `#E8F2F7` | texto |
-| `--ink-2` | `#3F5C70` | `#9DBBCB` | texto secundario (AA sobre `--surface`) |
-| `--line` | `#D1DEE6` | `#1B3B53` | bordes |
-| `--teal` | `#177487` | `#4CC3D6` | agente, flujo, enlaces (en 3D: `#2B9CAE`) |
-| `--blue` | `#2350A9` | `#7FA3FF` | segunda llave, foco |
-| `--pay` / `--pay-bg` | `#137A52` / `#E1F4EA` | `#3DD9A0` / `#0B3326` | PAGAR |
-| `--stop` / `--stop-bg` | `#BE2F3A` / `#FBE7E9` | `#FF7B80` / `#3A1519` | FRENAR |
-| `--esc` / `--esc-bg` | `#955700` / `#FCEFD6` | `#FFC15A` / `#3A2A0A` | ESCALAR |
-Estados nunca solo por color: siempre texto (sello, etiqueta de regla) además del color.
-Modo: sigue `prefers-color-scheme`; `data-theme="light|dark"` en `<html>` lo fuerza; se recuerda en `localStorage` (con try/catch).
+| Acento claro / oscuro | `#1F55D0` / `#6B93FF` | `#7B2A68` / `#E08BCB` | `#8A6414` / `#D7A840` |
+| Segundo (llave B) | `#7D8A99` / `#AEB8C4` plata | `#6B7A8F` / `#B8C0CC` | `#3C4A57` / `#9FB0BF` |
+| Fondo claro / oscuro | `#EDEFF1` / `#0E1114` (gris piedra neutro frío) | `#F2EFF2` / `#130E14` | `#F0F0EE` / `#121211` |
+| Superficie | `#FFFFFF` / `#161B20` | `#FFFFFF` / `#1C1520` | `#FFFFFF` / `#1A1A18` |
+| Tinta | `#14181D` / `#ECEFF2` | `#1D1620` / `#F3EDF4` | `#1C1B17` / `#EEEDE8` |
+| PAGAR | `#12784F` / `#44D69A` | `#15764C` / `#4BD99F` | `#1B7A4B` / `#4CD79B` |
+| FRENAR | `#B8322C` / `#FF8179` | `#C03A2B` / `#FF8A78` | `#B3261E` / `#FF8A80` |
+| ESCALAR | `#9A5A00` / `#FFC15A` | `#9A5A00` / `#FFC15A` | `#C2410C` / `#FF9A57` (naranja, para separarlo del latón) |
 
-## 3. Tipografía (Google Fonts)
-- **Geist** 400/500/600/700: UI y titulares (tracking -0.025 a -0.035em en titulares).
-- **Geist Mono** 400/500/600: ids, reglas, montos, JSON, etiquetas pequeñas en mayúsculas (tracking +0.06 a 0.14em).
-- Escala: 11 / 12 / 13 / 15 (base) / 17 (lede) / 22 / 28 (h2) / 36 (monto) / 40 (métrica) / clamp(32–58) (h1). Cifras con `tabular-nums`.
-- Prohibido Inter como fuente por defecto, y serif editorial.
+**Por qué Cobalto**: (1) es la única cuyo acento queda lejos de los tres semánticos (el ciruela roza el rojo en oscuro; el latón roza el ámbar y obliga a mover ESCALAR a naranja); (2) neutros fríos de gris piedra, sin tinte azul-marino, evitan el "fintech genérico navy"; (3) cobalto sobre blanco da 6,3:1 y sobre `#0E1114` el tono claro `#6B93FF` supera 6:1; (4) la segunda llave en plata mantiene la doble llave legible (dos llaves, un solo acento); (5) es sobria, confiable para finanzas y distinta del teal de la v1. Ciruela es la alternativa más distintiva; Latón la más "banca privada".
+Tokens (nombres CSS): `--bg --surface --s2 --ink --ink-2 --line --ac --ac2 --acbg --onac --pay/--paybg/--onpay --stop/… --esc/… --stage --paper --focus --shadow`. Se activan con `<html data-palette="cobalto|ciruela|laton">` y `data-theme="light|dark"` (si falta, `prefers-color-scheme`). Se guardan en `localStorage` (con try/catch). La escena 3D lee estas variables y se recolorea sola.
 
-## 4. Espaciado, radios, sombras
-- Espaciado base 4 px; pasos 4, 8, 12, 16, 20, 24, 32, 56. Contenedor 1240 px, gutter 24 (16 en móvil).
-- Radios con jerarquía: `--r0` 2 px (datos: tickets, chips, inputs, sellos), `--r1` 6 px (tarjetas, carriles), `--r2` 10 px (contenedores grandes: escena, métricas). Círculo solo en puntos de ruta.
-- Sombra única de tarjeta: `0 1px 0 rgba(4,36,60,.04), 0 8px 24px -12px rgba(4,36,60,.18)` (oscuro: negra más profunda). Sin glows en UI; el brillo es del 3D.
+## 3. Tipografía
+**Geist** (UI, 400–700) y **Geist Mono** (ids, reglas, montos, JSON, etiquetas en mayúsculas con tracking). Escala: 10,5 / 11 / 12,5 / 14 (base) / 15 / 20 (h2) / 30 (h1) / 32 (KPI). Cifras con `tabular-nums`. Sin Inter ni serif.
 
-## 5. Movimiento
-- Duraciones: `--t-fast` 140 ms (hover), `--t-med` 260 ms (estado), 420 ms sello, 800–900 ms barras que crecen. Easing: `cubic-bezier(.2,.7,.2,1)`.
-- Sello: aparece rotado -9° y escala 1.5 → -3° en 420 ms. Regla disparada: pulso suave 1.8 s en bucle.
-- Escena 3D: bucle de 10 facturas, 2,5 u/s, una cada ~1,5 s; se pausa fuera de pantalla (IntersectionObserver) y en pestaña oculta; sin postprocesado; píxel ratio máx. 2.
-- `prefers-reduced-motion: reduce`: se desactivan animaciones/transiciones CSS y la escena 3D se sustituye por un diagrama SVG estático. Sin WebGL: mismo fallback.
+## 4. Layout y componentes
+- **App shell**: sidebar 248 px (marca, workspace "Lumbre Analytics, Inc." ficticio, navegación: Centro de decisiones · Biblioteca de facturas · Aprobaciones · Reglas y parámetros · Registro; ciclo activo Octubre 2026 · Abierto); topbar con breadcrumbs, política vigente, selector de paleta y tema. En <1060 px la sidebar pasa a barra superior con navegación desplazable.
+- **Centro de decisiones**: escena 3D + línea "procesando #N → regla → decisión" sincronizada, 5 pasos, 4 KPIs (autonomía 56 %, pagos indebidos 0, presupuesto restante, doble lectura 20/25) y 3 carriles con las 25 facturas.
+- **Biblioteca**: KPIs, búsqueda, filtros (estado, formato), chips de rutas de recepción con conteos (Correo 7, Portal 11, API 3, WhatsApp 2, Slack 1, Telegram 1: rutas de ejemplo) y 3 paneles: lista · documento original con líneas numeradas y campo resaltado · pasos 1 Documento, 2 Extracción (con evidencia "Origen: «…» · línea N"), 3 Doble llave (LLM vs regex, abstención), 4 Reglas (ruta de 13 + gauge valor-vs-límite), 5 Decisión (ticket con sello). Clic en un campo ilumina el original y viceversa.
+- **Aprobaciones**: tarjeta por escalada con re-chequeo visible (beneficiario registrado / límite / presupuesto), nota obligatoria, Aprobar / Rechazar, y borrador JSON compatible con la API de Blinka (`draft_not_executed`, cuenta del registro maestro).
+- **Reglas y parámetros**: editor de límite, umbral y presupuesto; "Aplicar" crea una versión y lista qué decisiones cambian; tabla de las 13 reglas con conteo de facturas.
+- **Registro**: eventos con política y hash encadenado; filtro y descarga CSV.
+- **Sello**: mono 700, borde 2 px del color de la decisión, rotado -3°; único elemento inclinado. **Radios**: 2 px datos/chips/sellos, 6 px tarjetas, 10 px contenedores. Un solo sombreado de tarjeta.
 
-## 6. Componentes
-- **Ticket de decisión**: borde de 1 px, `--r0`, cabecera con id + formato en mono, nombre 22/600, monto 36 mono, sello a la derecha, párrafo "por qué" con chip de regla, gauge, dl de claves (beneficiario, cuenta del registro, presupuesto).
-- **Sello**: texto mono 700 en mayúsculas, borde 2 px del color de la decisión, rotado -3°. Es el único elemento inclinado.
-- **Ruta de reglas**: lista vertical de las 13 reglas en orden con línea conectora: `pasó` (punto teal con check), `dispara` (punto del color de la decisión con halo pulsante, texto en negrita), `no evaluada` (opacidad .45). Una fila por regla con código mono y descripción corta.
-- **Gauge valor-vs-límite**: pista 0–8.000 USD; relleno del color de la decisión; marcas verticales en 3.000 (umbral de aprobación) y 6.000 (límite duro); texto con el exceso ("+USD 1.000 sobre el límite").
-- **Tablero**: 3 carriles con borde superior de 3 px del color; conteo grande; tickets compactos (id, beneficiario, monto, regla). El seleccionado lleva barra lateral de 3 px. En <980 px los carriles pasan a pestañas.
-- **Bandeja de aprobación**: tarjeta con borde izquierdo ámbar; nota obligatoria; Aprobar (primario) / Rechazar (fantasma); mensajes de error mono en rojo ("presupuesto insuficiente; restan USD …"). Tras decidir: borde verde/rojo y estado fijo.
-- **Borrador Blinka**: bloque navy fijo (igual en claro/oscuro) con JSON coloreado (claves teal, cadenas verde, números ámbar) y sello `DRAFT · NOT EXECUTED`. Siempre se muestra la cuenta del registro maestro, nunca la de la factura.
-- **Métrica**: etiqueta mono mayúsculas, valor 40/600, subtexto; "0 pagos indebidos" en verde. Cuatro: autonomía 56 % (14/25), pagos indebidos 0, presupuesto restante (USD 2.483 de 40.000, baja al aprobar), doble lectura 20/25.
+## 5. Escena 3D (`flow3d.js`, `mountFlow(el,{reducedMotion,items,onItem})`)
+Recorre las 25 facturas reales en bucle. Cada formato tiene su forma: sobre (correo), burbuja (chat), hoja con esquina doblada (cuenta de cobro / factura) y hoja CFDI. Al llegar al nodo "LLM extrae" los campos saltan del documento al icosaedro y vuelven como barras de datos. "Doble llave": dos llaves giran y encajan en la cerradura si el regex leyó (la cerradura se vuelve verde); si el regex se abstiene, la llave B queda a medias (ámbar). "Motor": túnel de 13 anillos etiquetados que se encienden en orden hasta la regla que dispara (con el color de la decisión). Luego tres carriles: PAGAR a su bandeja, FRENAR contra una barrera, ESCALAR a una persona que re-chequea (check verde y borrador `draft_not_executed` para la 25; cruz roja para las bloqueadas). La 24 lleva campos ámbar y etiqueta "R_SOSPECHA · inyección". Rastro de partículas sobrio (140 puntos), cámara con leve vaivén, etiquetas con sprites. Sin postprocesado; pausa fuera de pantalla; píxel ratio ≤ 2. Aspecto vertical (móvil): el mundo gira 90° y el flujo corre de arriba abajo. Reduced-motion o sin WebGL: diagrama SVG estático.
 
-## 7. Escena 3D (hero)
-Flujo de izquierda a derecha sobre una cinta: Facturas (tarjetas con etiqueta CORREO/CFDI/CHAT/COBRO) → anillo + icosaedro "LLM extrae" (aparecen campos en la tarjeta) → dos anillos "Doble llave" → caja "Motor de reglas" con 13 barras que se encienden en orden hasta la regla que dispara → tres carriles. PAGAR cae a su bandeja; FRENAR choca contra una barrera roja; ESCALAR llega a una persona y, si se aprueba, sale una hoja `draft_not_executed`. La factura 24 (inyección) lleva campos ámbar, dispara `R_SOSPECHA · inyección` en la barra 1 y se desvía a ESCALAR (la persona la deja sin borrador). Tema claro/oscuro reactivo. API: `mountFlow(el, {reducedMotion})` devuelve `{destroy()}` o `null` (usar fallback).
+## 6. Movimiento y accesibilidad
+Duraciones 140 / 260 / 420 ms, easing `cubic-bezier(.2,.7,.2,1)`; sello rotado que cae; regla disparada con halo 1,8 s. `prefers-reduced-motion` anula animaciones CSS y sustituye la escena. Foco visible 2 px; estados con texto además de color; campos resaltados accesibles por teclado (Enter); contraste AA; sin scroll horizontal a 400 px.
 
-## 8. Accesibilidad y responsive
-- Foco visible: 2 px `--focus` con offset 2. Contraste AA en texto; estados con texto además de color.
-- Escena `role="img"` con descripción; canvas `aria-hidden`.
-- Sin scroll horizontal a 400 px; 5 pasos y métricas colapsan a 2 y 1 columnas.
-
-## 9. No hacer
-- Crema + serif + terracota, gradiente morado, Inter por defecto, emojis, todo centrado, `rounded-lg` en todo.
-- Glassmorphism, neón en la UI, sombras de colores, bordes con gradiente, tarjetas idénticas de tres iconos.
-- Color de decisión como adorno; verde para algo que no sea PAGAR; botones de rojo para "Rechazar" (se usa fantasma).
-- Animar sin explicar flujo; loops rápidos; parpadeos; autoplay con sonido.
-- Mostrar la cuenta bancaria de la factura como destino; sugerir que el borrador mueve dinero.
-- `|safe` o `mark_safe` con datos de facturas (en el prototipo, datos externos entran con `textContent`).
+## 7. No hacer
+- Usar el logo o nombre de Blinka como si fuera el producto.
+- Crema + serif + terracota, gradiente morado, Inter por defecto, emojis, todo centrado, `rounded-lg` en todo, glassmorphism, neón.
+- Verde para algo que no sea PAGAR; botones rojos para "Rechazar"; mostrar la cuenta de la factura como destino del pago.
+- Animar sin explicar flujo; sugerir que el borrador mueve dinero.
+- `|safe` / `mark_safe` con datos de facturas (el prototipo escapa todo con `esc()`).
