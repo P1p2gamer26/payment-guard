@@ -15,6 +15,8 @@ class Invoice(models.Model):
     filename = models.CharField(max_length=255)
     text = models.TextField()
     extraction = models.JSONField(null=True, blank=True)
+    # quien cargó/solicitó el pago; no puede ser quien lo aprueba (separación de funciones)
+    requested_by = models.CharField(max_length=120, default="ap@lumbre.example")
 
     def __str__(self):
         return self.invoice_id

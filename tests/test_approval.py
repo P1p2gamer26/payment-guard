@@ -44,3 +44,10 @@ def test_cannot_approve_pagar_or_frenar(processed):
     for i in ("01", "20"):
         with pytest.raises(ValueError):
             approve(rec(i), "cfo@lumbre.example", "ok")
+
+
+def test_requester_cannot_approve_own_request(processed):
+    with pytest.raises(ValueError, match="propia solicitud"):
+        approve(rec("25"), "AP@lumbre.example ", "yo mismo")
+    with pytest.raises(ValueError, match="propia solicitud"):
+        reject(rec("25"), "ap@lumbre.example", "yo mismo")

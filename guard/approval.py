@@ -13,6 +13,11 @@ CENT = Decimal("0.01")
 RAILS = {"US": "ACH", "CO": "BRE_B", "MX": "SPEI"}
 
 
+def _require_other_person(record: DecisionRecord, approver: str):
+    if (approver or "").strip().casefold() == record.invoice.requested_by.strip().casefold():
+        raise ValueError("no puedes aprobar tu propia solicitud: se requiere otra persona")
+
+
 def _require_note(note: str):
     if not note or not note.strip():
         raise ValueError("la nota de aprobacion es obligatoria")
@@ -46,6 +51,7 @@ def approve(record: DecisionRecord, approver: str, note: str, receipt: dict | No
     receipt = _check_receipt(record, receipt)
     _require_escalable(record)
     _require_note(note)
+    _require_other_person(record, approver)
     ex = _extraction(record)
     pv = record.policy_version
     policy = Policy(pv.raw, pv.version)
@@ -97,6 +103,7 @@ def approve(record: DecisionRecord, approver: str, note: str, receipt: dict | No
 def reject(record: DecisionRecord, approver: str, note: str) -> Approval:
     _require_escalable(record)
     _require_note(note)
+    _require_other_person(record, approver)
     return Approval.objects.create(
         decision=record, outcome="RECHAZADO", note=note.strip(), approver=approver
     )
