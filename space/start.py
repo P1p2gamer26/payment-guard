@@ -4,7 +4,7 @@ import sys
 
 from huggingface_hub import hf_hub_download, list_repo_files
 
-REPO = os.environ.get("MODEL_REPO", "P1p2gamer26/payment-guard-extractor-0.5b")
+REPO = os.environ.get("MODEL_REPO", "P1p2gamer26/payment-guard-extractor-1.5b")
 FALLBACK = ("Qwen/Qwen2.5-0.5B-Instruct-GGUF", "qwen2.5-0.5b-instruct-q4_k_m.gguf")  # Plan B: modelo base
 
 
