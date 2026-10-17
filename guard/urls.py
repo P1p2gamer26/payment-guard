@@ -7,6 +7,7 @@ urlpatterns = [
     path("biblioteca/", views.library, name="library"),
     path("factura/<str:invoice_id>/", views.invoice_detail, name="invoice_detail"),
     path("factura/<str:invoice_id>/alterar/", views.tamper_receipt, name="tamper_receipt"),
+    path("factura/<str:invoice_id>/corregir/", views.corregir_campo, name="corregir_campo"),
     path("arena/correr/", views.correr_arena, name="correr_arena"),
     path("reglas/mandato-v2/", views.aplicar_mandato_v2, name="aplicar_mandato_v2"),
     path("reglas/", views.rules, name="rules"),

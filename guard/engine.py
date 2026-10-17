@@ -72,7 +72,7 @@ def r_sospecha(c):
 
 
 def r_confianza(c):
-    if c.x.confidence < 0.8:
+    if c.x.confidence < 0.8:  # float-ok: confianza, no dinero
         raise Hit("ESCALAR", "R_CONFIANZA", confianza=c.x.confidence)
     if c.x.amount <= 0:
         raise Hit("ESCALAR", "R_CONFIANZA", monto=c.x.amount)
@@ -221,7 +221,7 @@ def run_batch(xs: list[Extraction], p: Policy) -> list[Decision]:
 def allowed_to_pay(x: Extraction, p: Policy, ledger: Ledger) -> bool:
     """Oráculo independiente: re-chequea los límites duros sin usar RULES ni decide()."""
     r = p.raw["reglas_pago"]
-    if x.suspicious or x.confidence < 0.8 or x.amount <= 0 or x.currency not in r["monedas_permitidas"]:
+    if x.suspicious or x.confidence < 0.8 or x.amount <= 0 or x.currency not in r["monedas_permitidas"]:  # float-ok: confianza, no dinero
         return False
     regs = [b for b in p.raw["beneficiarios_permitidos"]
             if b["id"] == x.beneficiary_id or b["nombre"].casefold().strip() == x.beneficiary_name.casefold().strip()]

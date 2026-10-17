@@ -1,6 +1,8 @@
 import copy
 import dataclasses
-from decimal import Decimal
+import re
+from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import models
@@ -10,12 +12,17 @@ from .domain import Extraction, Policy
 from .engine import Decision, Ledger, decide, find_beneficiary
 from .explain import explain
 from . import arena
-from .models import Approval, ArenaRun, DecisionRecord, Invoice, PolicyVersion
+from .models import Approval, ArenaRun, DecisionRecord, ExtractionCorrection, Invoice, PolicyVersion, UsedNonce
 from .receipt import sign
 from .extractor import extract, is_suspicious
 from .second_read import read_total
 
 CENT = Decimal("0.01")
+
+# Campos que una persona puede corregir: la cuenta y el beneficiario NUNCA (salen del registro maestro).
+CAMPOS_CORRIGIBLES = ("amount", "currency", "issue_date", "invoice_number", "concept")
+ISO3 = re.compile(r"^[A-Za-z]{3}$")
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def save_policy(raw: dict) -> PolicyVersion:
@@ -117,6 +124,114 @@ def process_text(text: str, invoice_id: str) -> Decision:
     x = dataclasses.replace(x, invoice_id=invoice_id, beneficiary_id=b and b["id"],
                             suspicious=x.suspicious or is_suspicious(text, policy.normalizar_unicode))
     return decide(x, policy, ledger, second_read=read_total(text))
+
+
+def _validar_valor(field: str, value: str) -> str:
+    """Normaliza y valida el valor corregido; ValueError con mensaje visible en la UI."""
+    v = (value or "").strip()
+    if field == "amount":
+        try:
+            monto = Decimal(v)
+        except InvalidOperation:
+            raise ValueError(f"monto: «{v}» no es un número.")
+        if monto <= 0:
+            raise ValueError("monto: debe ser mayor a 0.")
+        return str(monto)
+    if field == "currency":
+        if not ISO3.match(v):
+            raise ValueError(f"moneda: «{v}» debe ser un código ISO de 3 letras.")
+        return v.upper()
+    if field == "issue_date":
+        if not ISO_DATE.match(v):
+            raise ValueError(f"fecha: «{v}» debe tener formato YYYY-MM-DD.")
+        try:
+            date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(f"fecha: «{v}» no es una fecha válida.")
+        return v
+    if not v:
+        raise ValueError(f"{field}: el valor es obligatorio.")
+    return v
+
+
+def _segunda_lectura(rec: DecisionRecord, field: str):
+    """El regex de contraste; si la persona corrigió monto/moneda, esa lectura quedó obsoleta."""
+    # ponytail: no re-alimentar el regex con un valor que el humano acaba de sobreescribir
+    if field in ("amount", "currency") or not rec.second_read:
+        return None
+    try:
+        return (Decimal(str(rec.second_read[0])), str(rec.second_read[1]))
+    except (InvalidOperation, IndexError, TypeError):
+        return None
+
+
+def _ledger_previo(pv: PolicyVersion, excluida: Invoice) -> Ledger:
+    """Ledger de la política con lo ya pagado/aprobado por personas, sin incluir la factura en curso."""
+    policy = Policy(pv.raw, pv.version)
+    otros = (
+        DecisionRecord.objects.filter(policy_version=pv)
+        .exclude(invoice=excluida)
+        .filter(models.Q(outcome="PAGAR") | models.Q(approval__outcome="APROBADO"))
+        .order_by("invoice__invoice_id")
+        .select_related("invoice")
+    )
+    pagadas = [Extraction.from_dict(r.invoice.extraction) for r in otros if r.invoice.extraction]
+    gastado = sum((r.amount_usd for r in otros if r.amount_usd is not None), Decimal("0"))
+    return Ledger(policy.period_budget_remaining_usd - gastado, pagadas)
+
+
+def correct_field(invoice_id: str, field: str, value: str, actor: str, reason: str) -> DecisionRecord:
+    """Corrección humana de un campo extraído + re-decisión con la política actual y recibo nuevo."""
+    if field not in CAMPOS_CORRIGIBLES:
+        raise ValueError(
+            f"campo «{field}» no es corregible; use uno de: {', '.join(CAMPOS_CORRIGIBLES)}. "
+            "La cuenta y el beneficiario salen del registro maestro, nunca de la factura."
+        )
+    if not (reason or "").strip():
+        raise ValueError("el motivo de la corrección es obligatorio.")
+    if not (actor or "").strip():
+        raise ValueError("el actor de la corrección es obligatorio.")
+    nuevo = _validar_valor(field, (value or "").strip())
+    try:
+        inv = Invoice.objects.get(invoice_id=invoice_id)
+    except Invoice.DoesNotExist:
+        raise ValueError(f"factura {invoice_id} no encontrada.")
+    pv = current_policy()
+    rec = (
+        DecisionRecord.objects.filter(invoice=inv, policy_version=pv)
+        .select_related("policy_version")
+        .first()
+    )
+    if rec is None:
+        raise ValueError("la factura no tiene decisión registrada; reprocese antes de corregir.")
+    if Approval.objects.filter(decision=rec).exists():
+        raise ValueError("ya fue decidida por una persona")
+
+    ex = dict(inv.extraction or {})
+    viejo = "" if ex.get(field) is None else str(ex.get(field))
+    ex[field] = nuevo
+    ExtractionCorrection.objects.create(
+        invoice=inv, field=field, old_value=viejo, new_value=nuevo,
+        actor=(actor or "").strip(), reason=(reason or "").strip(),
+    )
+    inv.extraction = ex
+    inv.save(update_fields=["extraction"])
+
+    policy = Policy(pv.raw, pv.version)
+    x = Extraction.from_dict(ex)
+    d = decide(x, policy, _ledger_previo(pv, inv), second_read=_segunda_lectura(rec, field))
+    rec.outcome = d.outcome
+    rec.rule = d.rule
+    rec.amount_usd = d.amount_usd
+    rec.facts = d.facts
+    rec.explanation = explain(d, x)
+    rec.save()
+    # el recibo anterior queda inválido: se quema su nonce y cambian contenido y nonce del nuevo
+    if rec.receipt and rec.receipt.get("nonce"):
+        UsedNonce.objects.get_or_create(nonce=rec.receipt["nonce"])
+    rec.receipt = sign(rec)
+    rec.save(update_fields=["receipt"])
+    return rec
 
 
 def ensure_receipts(pv: PolicyVersion) -> None:

@@ -12,8 +12,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from guard.extractor import PROMPT  # noqa: E402
+from guard.data import load_policy  # noqa: E402
+from guard.domain import Extraction  # noqa: E402
+from guard.engine import find_beneficiary  # noqa: E402
 
-FIELDS = ("monto+moneda", "beneficiario", "cuenta", "fecha")
+FIELDS = ("monto+moneda", "beneficiario", "benef_resuelto", "cuenta", "fecha")
 
 
 def norm_name(s):
@@ -37,6 +40,19 @@ def ask(base, model, key, text):
     return json.loads(out)
 
 
+POLICY = load_policy()
+
+
+def _resolved(p):
+    try:
+        x = Extraction.from_dict({**p, "invoice_id": "eval", "amount": p.get("amount") or "0", "currency": p.get("currency") or "",
+                                  "beneficiary_id": None})
+        b = find_beneficiary(x, POLICY)
+        return b and b["id"]
+    except Exception:
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", required=True)
@@ -57,6 +73,8 @@ def main():
         ok = {
             "monto+moneda": dec(p.get("amount")) == dec(g["amount"]) and str(p.get("currency", "")).upper() == g["currency"],
             "beneficiario": bool(pn) and (pn == gn or pn in gn or gn in pn),
+            # lo que decide: ¿el motor identifica la ficha correcta del registro maestro con esta lectura?
+            "benef_resuelto": _resolved(p) == g["beneficiary_id"],
             "cuenta": str(p.get("bank_account") or "").strip() == g["bank_account"],
             "fecha": p.get("issue_date") == g["issue_date"],
         }

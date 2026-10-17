@@ -6,7 +6,7 @@ from django.db import transaction
 
 from . import receipt as rcpt
 from .domain import Policy
-from .models import Approval, DecisionRecord
+from .models import Approval, DecisionRecord, PolicyVersion
 from .services import spent_usd
 
 CENT = Decimal("0.01")
@@ -68,31 +68,33 @@ def approve(record: DecisionRecord, approver: str, note: str, receipt: dict | No
         raise ValueError(
             f"no se puede aprobar: USD {usd} supera el limite por pago de USD {policy.per_payment_limit_usd}"
         )
-    restante = policy.period_budget_remaining_usd - spent_usd(pv)
-    if restante < usd:
-        raise ValueError(
-            f"no se puede aprobar: presupuesto insuficiente; restan USD {restante} y se requieren USD {usd}"
-        )
-    esperado = {"invoice_id": record.invoice.invoice_id, "amount": str(ex.get("amount")), "currency": currency,
-                "beneficiary_id": ben_id, "beneficiary_account": ben["cuenta"], "policy_version": pv.version}
-    if any(receipt.get(k) != v for k, v in esperado.items()):
-        raise ValueError("no se puede aprobar: el recibo no coincide con la factura y el registro maestro")
-    draft = {
-        "object": "transfer_draft",
-        "status": "draft_not_executed",
-        "amount_minor": int((amount).quantize(CENT, ROUND_HALF_UP) * 100),
-        "currency": currency,
-        "beneficiary_id": ben_id,
-        "beneficiary_account": ben["cuenta"],
-        "rail": RAILS.get(ben.get("pais"), "SWIFT"),
-        "invoice_id": record.invoice.invoice_id,
-        "policy_version": pv.version,
-        "approved_by": approver,
-        "approval_note": note.strip(),
-        "receipt_sig": receipt["sig"],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
     with transaction.atomic():
+        # ponytail: select_for_update serializa en Postgres; SQLite ya serializa escrituras
+        pv_bloqueada = PolicyVersion.objects.select_for_update().get(pk=pv.pk)
+        restante = policy.period_budget_remaining_usd - spent_usd(pv_bloqueada)
+        if restante < usd:
+            raise ValueError(
+                f"no se puede aprobar: presupuesto insuficiente; restan USD {restante} y se requieren USD {usd}"
+            )
+        esperado = {"invoice_id": record.invoice.invoice_id, "amount": str(ex.get("amount")), "currency": currency,
+                    "beneficiary_id": ben_id, "beneficiary_account": ben["cuenta"], "policy_version": pv.version}
+        if any(receipt.get(k) != v for k, v in esperado.items()):
+            raise ValueError("no se puede aprobar: el recibo no coincide con la factura y el registro maestro")
+        draft = {
+            "object": "transfer_draft",
+            "status": "draft_not_executed",
+            "amount_minor": int((amount).quantize(CENT, ROUND_HALF_UP) * 100),
+            "currency": currency,
+            "beneficiary_id": ben_id,
+            "beneficiary_account": ben["cuenta"],
+            "rail": RAILS.get(ben.get("pais"), "SWIFT"),
+            "invoice_id": record.invoice.invoice_id,
+            "policy_version": pv.version,
+            "approved_by": approver,
+            "approval_note": note.strip(),
+            "receipt_sig": receipt["sig"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
         Approval.objects.create(
             decision=record, outcome="APROBADO", note=note.strip(), approver=approver, draft=draft
         )

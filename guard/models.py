@@ -54,6 +54,20 @@ class Approval(models.Model):
         return f"{self.decision} -> {self.outcome}"
 
 
+class ExtractionCorrection(models.Model):
+    """Corrección humana de un campo extraído: quién, qué cambió y por qué (auditoría)."""
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="corrections")
+    field = models.CharField(max_length=32)
+    old_value = models.TextField(blank=True, default="")
+    new_value = models.TextField(blank=True, default="")
+    actor = models.CharField(max_length=120)
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_id}.{self.field}: «{self.old_value}» -> «{self.new_value}»"
+
+
 class UsedNonce(models.Model):
     nonce = models.CharField(max_length=64, unique=True)
     used_at = models.DateTimeField(auto_now_add=True)

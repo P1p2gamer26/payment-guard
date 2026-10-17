@@ -45,6 +45,12 @@
   </div>
   <div class="card"><h3>Borrador compatible con la API de Blinka</h3>
     {% if draft_json %}<div class="draft" aria-live="polite"><span class="dstamp">DRAFT · NOT EXECUTED</span><pre class="draftpre">{{ draft_json }}</pre></div><p class="note">Último borrador: factura #{{ draft_de }}.</p>
+      {% if cuenta.maestra %}
+      <div class="cuenta-maestra">
+        <p class="cuenta-maestra__row"><b class="mono">{{ cuenta.maestra }}</b><span class="hash">Cuenta del registro maestro (no de la factura)</span></p>
+        {% if cuenta.distinta %}<p class="cuenta-maestra__diff">La factura pedía: <s class="tachado">{{ cuenta.factura }}</s></p>{% endif %}
+      </div>
+      {% endif %}
     {% else %}<div class="draft"><span class="dstamp">DRAFT · NOT EXECUTED</span><pre class="draftpre">Aún no hay borradores: aprueba una escalada para generar el primero.</pre></div>{% endif %}
     <div class="budget">Presupuesto restante: USD {{ presup.restante_txt }} de USD {{ presup.mensual_txt }}.</div>
     <p class="note">El borrador usa siempre la cuenta del registro maestro, nunca la de la factura. Estado <span class="mono">draft_not_executed</span>: no mueve dinero.</p>

@@ -29,6 +29,12 @@
       {% for f in campos %}<dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.ev %} <span class="hash">· línea {{ f.ev.line }}</span>{% else %} <span class="hash">· sin evidencia directa</span>{% endif %}</dd>{% endfor %}
     </dl>
     {% else %}<p>Sin extracción registrada.</p>{% endif %}
+    {% if cuenta.maestra %}
+    <div class="cuenta-maestra">
+      <p class="cuenta-maestra__row"><b class="mono">{{ cuenta.maestra }}</b><span class="hash">Cuenta del registro maestro (no de la factura)</span></p>
+      {% if cuenta.distinta %}<p class="cuenta-maestra__diff">La factura pedía: <s class="tachado">{{ cuenta.factura }}</s></p>{% endif %}
+    </div>
+    {% endif %}
     <h3 style="margin-top:18px">Segunda lectura (regex)</h3>
     {% if second_read %}<p class="lectura"><strong class="mono">{{ second_read.1 }} {{ second_read.0 }}</strong></p>{% else %}<p class="lectura lectura--nula">Sin segunda lectura clara.</p>{% endif %}
   </div>
@@ -75,6 +81,47 @@
   {% if draft_json %}
   <h3>Borrador de pago</h3>
   <div class="draft"><span class="dstamp">DRAFT · NOT EXECUTED</span><pre class="draftpre">{{ draft_json }}</pre></div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if record %}
+<div class="card" style="margin-top:14px"><h3>Corrección humana de un campo</h3>
+  <p class="lede">La corrección se registra con autor y motivo, y re-elige la decisión con la política actual.
+    La cuenta y el beneficiario <strong>no</strong> se corrigen aquí: salen del registro maestro.</p>
+  <form class="inline-form" method="post" action="{% url 'corregir_campo' invoice.invoice_id %}">
+    {% csrf_token %}
+    <label for="campo">Campo a corregir</label>
+    <select id="campo" name="campo">
+      {% for k, etiqueta in campos_form %}<option value="{{ k }}">{{ etiqueta }}</option>{% endfor %}
+    </select>
+    <label for="valor">Valor corregido</label>
+    <input id="valor" name="valor" required autocomplete="off">
+    <label for="motivo">Motivo (obligatorio)</label>
+    <input id="motivo" name="motivo" required autocomplete="off">
+    <label for="actor">Corrige</label>
+    <input id="actor" name="actor" value="{{ invoice.requested_by }}" autocomplete="off">
+    <button class="btn ghost sm" type="submit">Aplicar y re-decidir</button>
+  </form>
+  <h3 style="margin-top:18px">Historial de correcciones</h3>
+  {% if correcciones %}
+  <div class="tw"><table>
+    <thead><tr><th>Campo</th><th>Antes</th><th>Después</th><th>Autor</th><th>Motivo</th><th>Cuándo</th></tr></thead>
+    <tbody>
+    {% for x in correcciones %}
+      <tr>
+        <td>{{ x.campo }}</td>
+        <td class="m">{{ x.c.old_value|default:"—" }}</td>
+        <td class="m">{{ x.c.new_value }}</td>
+        <td class="m">{{ x.c.actor }}</td>
+        <td>{{ x.c.reason }}</td>
+        <td class="m">{{ x.c.created_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="detalle__vacio">Sin correcciones: la extracción original se mantiene intacta.</p>
   {% endif %}
 </div>
 {% endif %}

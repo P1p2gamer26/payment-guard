@@ -21,11 +21,13 @@ from .explain import explain
 from . import receipt as rcpt
 from . import ui
 from .models import Approval, DecisionRecord, Invoice, PolicyVersion, UsedNonce
-from .services import apply_mandato_v2, current_policy, run_arena, ensure_receipts, process_all, process_text, save_policy, spent_usd
+from .services import apply_mandato_v2, correct_field, current_policy, run_arena, ensure_receipts, process_all, process_text, save_policy, spent_usd
 
 DECISIONES = ("PAGAR", "FRENAR", "ESCALAR")
 ISO3 = re.compile(r"^[A-Za-z]{3}$")
 MAX_BODY = 20480  # bytes
+CAMPOS_FORM = [(k, l) for k, l in ui.CAMPOS if k in ("amount", "currency", "issue_date", "invoice_number", "concept")]
+ETIQUETA_CAMPO = dict(ui.CAMPOS)
 
 
 def ensure_processed() -> PolicyVersion:
@@ -53,6 +55,18 @@ def _records(pv: PolicyVersion):
 
 def _extraccion(rec: DecisionRecord) -> dict:
     return rec.invoice.extraction or {}
+
+
+def _cuenta_maestra(policy: Policy, ex: dict) -> dict:
+    """Cuenta del registro maestro; la que pedía la factura solo se muestra tachada."""
+    ben = policy.beneficiaries.get(ex.get("beneficiary_id") or "")
+    maestra = str((ben or {}).get("cuenta") or "")
+    factura = str(ex.get("bank_account") or "")
+    return {
+        "maestra": maestra,
+        "factura": factura,
+        "distinta": bool(maestra and factura and factura.strip() != maestra.strip()),
+    }
 
 
 def _pagos_indebidos(records, policy: Policy) -> int:
@@ -183,11 +197,17 @@ def invoice_detail(request, invoice_id: str, tamper_error: str = ""):
         "reglas": ui.rule_path(record, policy) if record else [],
         "gauge": ui.gauge(record, policy) if record else None,
         "campos": ui.campos(ex, ev),
+        "cuenta": _cuenta_maestra(policy, ex),
         "facts_json": json.dumps(record.facts, indent=2, ensure_ascii=False, default=str) if record else "",
         "second_read": record.second_read if record else None,
         "aprobacion": _aprobacion(record) if record else None,
         "tamper_error": tamper_error,
         "card": ui.card(record, _aprobacion(record)) if record else None,
+        "campos_form": CAMPOS_FORM,
+        "correcciones": [
+            {"c": c, "campo": ETIQUETA_CAMPO.get(c.field, c.field)}
+            for c in invoice.corrections.order_by("-created_at", "-id")
+        ],
     }
     if record and record.receipt:
         ok, motivo = rcpt.verify(record.receipt, check_nonce=False)
@@ -197,6 +217,28 @@ def invoice_detail(request, invoice_id: str, tamper_error: str = ""):
         a = _aprobacion(record)
         ctx["draft_json"] = json.dumps(a.draft, indent=2, ensure_ascii=False) if a and a.draft else ""
     return render(request, "guard/detail.html", ctx)
+
+
+@require_POST
+def corregir_campo(request, invoice_id: str):
+    """Corrección humana de un campo extraído: re-decide la factura y regenera su recibo."""
+    ensure_processed()
+    invoice = get_object_or_404(Invoice, invoice_id=invoice_id)
+    field = (request.POST.get("campo") or "").strip()
+    value = request.POST.get("valor") or ""
+    motivo = request.POST.get("motivo") or ""
+    actor = (request.POST.get("actor") or "").strip() or invoice.requested_by
+    try:
+        rec = correct_field(invoice.invoice_id, field, value, actor, motivo)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("invoice_detail", invoice_id=invoice_id)
+    messages.success(
+        request,
+        f"Factura {invoice.invoice_id}: «{ETIQUETA_CAMPO.get(field, field)}» corregido a {value.strip()}; "
+        f"nueva decisión {rec.outcome} ({rec.rule}) y recibo regenerado.",
+    )
+    return redirect("invoice_detail", invoice_id=invoice_id)
 
 
 @require_POST
@@ -341,6 +383,7 @@ def inbox(request):
         "n_rech": sum(1 for x in resueltas if x["ap"].outcome == "RECHAZADO"),
         "draft_json": json.dumps(ultimo["ap"].draft, indent=2, ensure_ascii=False) if ultimo else "",
         "draft_de": ultimo["card"]["id"] if ultimo else "",
+        "cuenta": _cuenta_maestra(policy, _extraccion(ultimo["ap"].decision)) if ultimo else None,
     }
     return render(request, "guard/inbox.html", ctx)
 
@@ -372,6 +415,14 @@ def decide_approval(request, record_id: int):
 def log(request):
     pv = ensure_processed()
     records = _records(pv)
+    if request.GET.get("format") == "json":
+        aprob = _aprobaciones(records)
+        resp = HttpResponse(
+            json.dumps([_fila_json(r, aprob) for r in records], ensure_ascii=False, default=str),
+            content_type="application/json",
+        )
+        resp["Content-Disposition"] = 'attachment; filename="registro.json"'
+        return resp
     filas = [_fila_log(r) for r in records]
     if request.GET.get("format") == "csv":
         return _csv_response(filas)
@@ -421,6 +472,39 @@ COLUMNAS = [
     "invoice_id", "beneficiario", "monto", "moneda", "monto_usd", "decision",
     "regla", "explicacion", "aprobacion", "aprobador", "nota", "policy_version",
 ]
+
+
+def _evidencia(rec: DecisionRecord) -> dict:
+    """{campo: línea del texto original donde aparece el valor} o null si no aparece literal."""
+    ex = _extraccion(rec)
+    _, ev = ui.build_doc(rec.invoice.text, ex)
+    out = {}
+    for k in [c for c, _ in ui.CAMPOS] + [k for k in ex if k not in dict(ui.CAMPOS)]:
+        hit = ev.get(k)
+        out[k] = hit["line"] if hit else None
+    return out
+
+
+def _fila_json(rec: DecisionRecord, aprob: dict) -> dict:
+    a = aprob.get(rec.pk)
+    return {
+        "invoice_id": rec.invoice.invoice_id,
+        "policy_version": rec.policy_version.version,
+        "outcome": rec.outcome,
+        "rule": rec.rule,
+        "facts": rec.facts,
+        "explanation": rec.explanation,
+        "extraction": _extraccion(rec),
+        "evidence": _evidencia(rec),
+        "second_read": rec.second_read,
+        "receipt_sig": (rec.receipt or {}).get("sig"),
+        "approval": {
+            "outcome": a.outcome if a else None,
+            "approver": a.approver if a else None,
+            "note": a.note if a else None,
+            "requested_by": rec.invoice.requested_by,
+        },
+    }
 
 
 def _csv_response(filas: list[dict]) -> HttpResponse:

@@ -25,6 +25,27 @@ def test_csv_export_has_25_rows(c):
     assert len(r.content.decode().strip().splitlines()) == 26
 
 
+def test_json_export_has_25_with_evidence(c):
+    r = c.get("/registro/?format=json")
+    assert r["Content-Type"].startswith("application/json")
+    data = json.loads(r.content.decode())
+    assert len(data) == 25
+    for item in data:
+        assert {"rule", "outcome", "evidence"} <= set(item)
+        assert item["evidence"] and "amount" in item["evidence"]
+    # al menos la factura 25 tiene línea de evidencia para el monto
+    f25 = next(i for i in data if i["invoice_id"] == "25")
+    assert isinstance(f25["evidence"]["amount"], int)
+    assert f25["approval"]["requested_by"] and f25["policy_version"] >= 1
+
+
+def test_detail_shows_master_account_label(c):
+    html = c.get("/factura/25/").content.decode()
+    assert "registro maestro" in html
+    assert "000-FICT-9999" in html
+    assert "La factura pedía:" in html
+
+
 def test_invoice_text_is_escaped(c):
     inv = Invoice.objects.get(invoice_id="24")
     inv.text = "<script>alert(1)</script>"; inv.save()

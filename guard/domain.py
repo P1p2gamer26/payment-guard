@@ -14,7 +14,7 @@ class Extraction:
     invoice_number: str
     bank_account: str
     concept: str
-    confidence: float = 1.0
+    confidence: float = 1.0  # float-ok: confianza, no dinero
     suspicious: bool = False
 
     @classmethod
@@ -29,7 +29,7 @@ class Extraction:
             invoice_number=d.get("invoice_number") or "",
             bank_account=d.get("bank_account") or "",
             concept=d.get("concept") or "",
-            confidence=float(d.get("confidence", 1.0)),
+            confidence=float(d.get("confidence", 1.0)),  # float-ok: confianza, no dinero
             suspicious=bool(d.get("suspicious", False)),
         )
 

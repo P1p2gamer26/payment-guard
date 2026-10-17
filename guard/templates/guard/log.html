@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="ph"><div><h1>Registro de auditoría <span class="pv">política v{{ pv.version }}</span></h1><p class="lede" style="margin:0">Cada decisión, aprobación y rechazo queda con la política vigente y un hash encadenado (demostración).</p></div>
-  <div class="btns"><label class="sr" for="rgF">Filtrar eventos</label><select id="rgF"><option value="">Todos los eventos</option><option>decisión</option><option>aprobación</option><option>rechazo</option></select><a class="btn acc registro__acciones" href="?format=csv">Descargar CSV</a></div></div>
+  <div class="btns"><label class="sr" for="rgF">Filtrar eventos</label><select id="rgF"><option value="">Todos los eventos</option><option>decisión</option><option>aprobación</option><option>rechazo</option></select><a class="btn acc registro__acciones" href="?format=csv">Descargar CSV</a><a class="btn ghost registro__acciones" href="?format=json">Exportar JSON</a></div></div>
 
 <h2 class="h2s">Eventos</h2>
 <div class="tw"><table id="logt">
