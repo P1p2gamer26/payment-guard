@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment Guard</title>
+<meta name="description" content="El LLM lee, el código decide: facturas de contratistas en LatAm, 13 reglas, aprobación humana y borrador Blinka.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6F8; --surface:#FFFFFF; --surface-2:#E9EFF3; --ink:#04243C; --ink-2:#3F5C70; --line:#D1DEE6;
+  --teal:#177487; --teal-bg:#DDF0F4; --blue:#2350A9;
+  --pay:#137A52; --pay-bg:#E1F4EA; --stop:#BE2F3A; --stop-bg:#FBE7E9; --esc:#955700; --esc-bg:#FCEFD6;
+  --shadow:0 1px 0 rgba(4,36,60,.04),0 8px 24px -12px rgba(4,36,60,.18);
+  --stage:#EEF3F6; --focus:#2350A9;
+  --font:'Geist',system-ui,'Segoe UI',sans-serif; --mono:'Geist Mono',ui-monospace,Consolas,monospace;
+  --r0:2px; --r1:6px; --r2:10px;
+  --t-fast:140ms; --t-med:260ms; --ease:cubic-bezier(.2,.7,.2,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#04141F; --surface:#0A2132; --surface-2:#0F2D43; --ink:#E8F2F7; --ink-2:#9DBBCB; --line:#1B3B53;
+  --teal:#4CC3D6; --teal-bg:#0E3646; --blue:#7FA3FF;
+  --pay:#3DD9A0; --pay-bg:#0B3326; --stop:#FF7B80; --stop-bg:#3A1519; --esc:#FFC15A; --esc-bg:#3A2A0A;
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 12px 30px -14px rgba(0,0,0,.7); --stage:#061A29; --focus:#7FA3FF; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#04141F; --surface:#0A2132; --surface-2:#0F2D43; --ink:#E8F2F7; --ink-2:#9DBBCB; --line:#1B3B53;
+  --teal:#4CC3D6; --teal-bg:#0E3646; --blue:#7FA3FF;
+  --pay:#3DD9A0; --pay-bg:#0B3326; --stop:#FF7B80; --stop-bg:#3A1519; --esc:#FFC15A; --esc-bg:#3A2A0A;
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 12px 30px -14px rgba(0,0,0,.7); --stage:#061A29; --focus:#7FA3FF; color-scheme:dark;}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.55 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button,input,textarea{font:inherit;color:inherit}
+.mono{font-family:var(--mono);font-feature-settings:"zero"}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+.brand svg{width:22px;height:22px}
+.nav{display:flex;gap:4px;margin-left:12px}
+.nav a{color:var(--ink-2);text-decoration:none;padding:6px 10px;border-radius:var(--r1);font-size:14px}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.sp{flex:1}
+.who{font:500 12px var(--mono);color:var(--ink-2)}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r1);height:34px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-size:13px}
+.iconbtn:hover{border-color:var(--teal)}
+
+/* hero */
+.hero{padding:28px 0 8px}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+h1{font-size:clamp(32px,4.8vw,58px);line-height:1.02;letter-spacing:-.035em;margin:10px 0 14px;font-weight:600}
+h1 em{font-style:normal;color:var(--teal)}
+.lede{max-width:56ch;color:var(--ink-2);font-size:17px;margin:0}
+.herogrid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end}
+.herometa{display:grid;gap:6px;font:500 12px var(--mono);color:var(--ink-2);text-align:right}
+.stage{position:relative;margin-top:20px;border:1px solid var(--line);border-radius:var(--r2);background:var(--stage);overflow:hidden;aspect-ratio:2.5/1;min-height:280px}
+.stage .fb{position:absolute;inset:0;display:none;padding:16px}
+.stage.nofx .fb{display:block}
+.stage .fb svg{width:100%;height:100%}
+.stage-note{position:absolute;left:14px;bottom:10px;font:500 11px var(--mono);color:var(--ink-2);pointer-events:none}
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0;padding:0;list-style:none;border:1px solid var(--line);border-top:0;border-radius:0 0 var(--r2) var(--r2);background:var(--surface)}
+.steps li{padding:14px 16px;border-left:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.steps li:first-child{border-left:0}
+.steps b{display:block;color:var(--ink);font-weight:600;font-size:14px;margin-bottom:2px}
+.steps .n{font:600 11px var(--mono);color:var(--teal);display:block;margin-bottom:6px}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;margin-top:28px}
+.metric{background:var(--surface);padding:18px 20px}
+.metric .k{font:500 12px var(--mono);color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
+.metric .v{font-size:40px;line-height:1.1;font-weight:600;letter-spacing:-.03em;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.metric .s{font-size:13px;color:var(--ink-2)}
+.bar{height:6px;background:var(--surface-2);border-radius:var(--r0);overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--teal);transform-origin:left;animation:grow 900ms var(--ease) both}
+.bar i.warn{background:var(--esc)}
+@keyframes grow{from{transform:scaleX(0)}}
+.ok{color:var(--pay)}
+
+section{padding:56px 0 8px}
+h2{font-size:28px;letter-spacing:-.025em;margin:0 0 6px;font-weight:600}
+.sub{color:var(--ink-2);margin:0 0 22px;max-width:70ch}
+
+/* tablero */
+.tabs{display:none;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:var(--r1);padding:9px 6px;cursor:pointer;font-weight:500;font-size:13px}
+.tabs button[aria-selected="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.lane{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:var(--r1);box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+.lane[data-d="PAGAR"]{--c:var(--pay)} .lane[data-d="FRENAR"]{--c:var(--stop)} .lane[data-d="ESCALAR"]{--c:var(--esc)}
+.lane h3{display:flex;align-items:baseline;gap:10px;margin:0;padding:14px 16px 4px;font-size:13px;font:600 13px var(--mono);letter-spacing:.08em;color:var(--c)}
+.lane h3 .cnt{font-size:34px;font-family:var(--font);letter-spacing:-.03em;color:var(--ink);line-height:1}
+.lane p.def{margin:0;padding:0 16px 10px;color:var(--ink-2);font-size:13px;border-bottom:1px solid var(--line)}
+.list{list-style:none;margin:0;padding:6px;display:grid;gap:4px;max-height:430px;overflow:auto}
+.tk{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;border:1px solid transparent;background:transparent;border-radius:var(--r0);padding:8px 10px;cursor:pointer;position:relative;transition:background var(--t-fast),border-color var(--t-fast)}
+.tk:hover{background:var(--surface-2)}
+.tk[aria-current="true"]{background:var(--surface-2);border-color:var(--c);box-shadow:inset 3px 0 0 var(--c)}
+.tk .id{font:600 12px var(--mono);color:var(--ink-2)}
+.tk .nm{font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk .am{font:500 13px var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.tk .ru{grid-column:2/4;font:500 11px var(--mono);color:var(--ink-2)}
+.tk.hot .ru{color:var(--c)}
+
+/* detail */
+.detail{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r1);box-shadow:var(--shadow);padding:20px;min-width:0}
+.card h3{margin:0 0 14px;font:600 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.path{list-style:none;margin:0;padding:0;position:relative}
+.path::before{content:"";position:absolute;left:11px;top:10px;bottom:10px;width:2px;background:var(--line)}
+.path li{position:relative;display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:5px 0;color:var(--ink-2);font-size:13px}
+.path .dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:2px solid var(--line);font:600 10px var(--mono);z-index:1;transition:all var(--t-med) var(--ease)}
+.path li .c{font:500 12px var(--mono)}
+.path li .st{font:500 11px var(--mono)}
+.path li.pass{color:var(--ink)} .path li.pass .dot{border-color:var(--teal);background:var(--teal);color:var(--surface)}
+.path li.skip{opacity:.45}
+.path li.fire{color:var(--ink);font-weight:600}
+.path li.fire .dot{border-color:var(--c);background:var(--c);color:var(--surface);box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 22%,transparent);animation:pulse 1.8s var(--ease) infinite}
+.path li.fire .st{color:var(--c)}
+@keyframes pulse{50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--c) 6%,transparent)}}
+.ticket{border:1px solid var(--line);border-radius:var(--r0);padding:20px;position:relative;background:var(--surface);
+  background-image:linear-gradient(var(--surface-2),var(--surface-2));background-size:100% 0}
+.ticket-h{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.ticket .nm{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.ticket .meta{font:500 12px var(--mono);color:var(--ink-2)}
+.amt{font:600 36px var(--mono);letter-spacing:-.04em;margin:14px 0 2px;font-variant-numeric:tabular-nums}
+.stamp{font:700 14px var(--mono);letter-spacing:.14em;color:var(--c);border:2px solid var(--c);padding:6px 12px;border-radius:var(--r0);transform:rotate(-3deg);display:inline-block;animation:stamp 420ms var(--ease) both}
+@keyframes stamp{from{opacity:0;transform:rotate(-9deg) scale(1.5)}}
+.why{margin:14px 0 0;font-size:16px;max-width:62ch}
+.rulechip{display:inline-block;font:600 12px var(--mono);padding:3px 8px;border-radius:var(--r0);background:var(--c-bg);color:var(--c)}
+[data-d="PAGAR"]{--c:var(--pay);--c-bg:var(--pay-bg)} [data-d="FRENAR"]{--c:var(--stop);--c-bg:var(--stop-bg)} [data-d="ESCALAR"]{--c:var(--esc);--c-bg:var(--esc-bg)}
+.gauge{margin-top:22px}
+.gauge .lbl{display:flex;justify-content:space-between;font:500 12px var(--mono);color:var(--ink-2);margin-bottom:26px;gap:8px;flex-wrap:wrap}
+.track{position:relative;height:14px;background:var(--surface-2);border-radius:var(--r0)}
+.track .fill{position:absolute;inset:0 auto 0 0;background:var(--c);border-radius:var(--r0);transform-origin:left;animation:grow 800ms var(--ease) both}
+.track .mk{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+.track .mk span{position:absolute;top:calc(100% + 4px);transform:translateX(-50%);font:500 10px var(--mono);color:var(--ink-2);white-space:nowrap}
+.track .mk.hi span{top:auto;bottom:calc(100% + 4px)}
+.keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:34px;padding-top:16px;border-top:1px dashed var(--line)}
+.keys dt{font:500 11px var(--mono);color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+.keys dd{margin:2px 0 0;font:500 13px var(--mono);word-break:break-word}
+
+/* approval + draft */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.inbox{display:grid;gap:12px}
+.appr{border:1px solid var(--line);border-left:3px solid var(--esc);border-radius:var(--r0);padding:14px;background:var(--surface)}
+.appr.done{border-left-color:var(--pay);opacity:.9}.appr.rej{border-left-color:var(--stop)}
+.appr header{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.appr .nm{font-weight:600}
+.appr .am{font:600 14px var(--mono)}
+.appr p{margin:6px 0 10px;font-size:13px;color:var(--ink-2)}
+.appr textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--line);background:var(--bg);border-radius:var(--r0);padding:8px 10px;font-size:13px}
+.appr .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:var(--r0);padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:hover{filter:brightness(1.12)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.msg{font:500 12px var(--mono);margin-top:8px;min-height:1.2em}
+.msg.bad{color:var(--stop)} .msg.good{color:var(--pay)}
+.draft{position:relative;background:#04243C;color:#D7E7EE;border-radius:var(--r1);padding:20px;font:400 12.5px/1.65 var(--mono);overflow:auto;border:1px solid #1C4A66}
+:root[data-theme="dark"] .draft,:root:not([data-theme="light"]) .draft{}
+.draft .k{color:#6FD3E2}.draft .s{color:#8FE3B4}.draft .n{color:#F6C766}
+.draft pre{margin:0;white-space:pre-wrap;word-break:break-word}
+.dstamp{position:absolute;top:14px;right:14px;font:700 11px var(--mono);letter-spacing:.14em;color:#6FD3E2;border:2px solid #6FD3E2;padding:4px 8px;transform:rotate(3deg);border-radius:var(--r0);animation:stamp 420ms var(--ease) both}
+.empty{color:#8FB0C2}
+.log{list-style:none;margin:16px 0 0;padding:0;font:500 12px var(--mono);color:var(--ink-2);display:grid;gap:4px}
+.log b{color:var(--ink);font-weight:600}
+footer{padding:48px 0 60px;color:var(--ink-2);font-size:13px}
+footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding-top:20px}
+
+@media (max-width:980px){
+  .herogrid{grid-template-columns:1fr}.herometa{text-align:left}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .detail,.two{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr 1fr}.steps li{border-left:0;border-top:1px solid var(--line)}
+  .tabs{display:flex}.board{grid-template-columns:1fr}.lane{display:none}.lane.on{display:flex}
+  .nav{display:none}
+}
+@media (max-width:560px){
+  .wrap{padding:0 16px}
+  .stage{aspect-ratio:1.15/1;min-height:0}
+  .who{display:none}
+  .metric .v{font-size:32px}
+  .keys{grid-template-columns:1fr 1fr}
+  .amt{font-size:28px}
+  
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#top" aria-label="Payment Guard">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5 20 5.6v6.1c0 4.7-3.2 8.2-8 9.8-4.8-1.6-8-5.1-8-9.8V5.6l8-3.1Z" stroke="currentColor" stroke-width="1.8"/><path d="m8.2 12.2 2.6 2.6 5-5.3" stroke="var(--teal)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Payment Guard</a>
+  <nav class="nav" aria-label="Secciones"><a href="#tablero">Tablero</a><a href="#decision">Decisión</a><a href="#aprobacion">Aprobación</a><a href="#borrador">Borrador</a></nav>
+  <span class="sp"></span>
+  <span class="who">Lumbre Analytics · 2026-10</span>
+  <button class="iconbtn" id="theme" type="button" aria-label="Cambiar tema claro u oscuro"><span id="themeTxt">Tema</span></button>
+</div></header>
+
+<main id="top">
+<div class="wrap">
+<div class="hero">
+  <div class="herogrid">
+    <div>
+      <div class="eyebrow">Hackathon 30X · Reto Blinka</div>
+      <h1>El LLM lee. <em>El código decide.</em></h1>
+      <p class="lede">Payment Guard revisa cada factura de contratistas en LatAm contra 13 reglas, cita la que decidió y deja el pago en borrador hasta que una persona lo apruebe.</p>
+    </div>
+    <div class="herometa" aria-label="Estado del demo"><span>25 facturas · 4 formatos</span><span>Modo replay · sin red</span><span>Hoy 2026-10-17</span></div>
+  </div>
+
+  <div class="stage" id="stage" role="img" aria-label="Animación del flujo: las facturas entran, un LLM extrae los campos, una doble lectura verifica monto y moneda, el motor de reglas decide y separa en PAGAR, FRENAR o ESCALAR. Lo escalado va a una persona y produce un borrador que no mueve dinero.">
+    <div class="fb" id="fb" aria-hidden="true">
+      <svg viewBox="0 0 1000 400" font-family="Geist, sans-serif">
+        <g stroke="var(--line)" stroke-width="2" fill="none"><path d="M40 200H560M560 200L700 90H900M560 200H900M560 200L700 310H830"/></g>
+        <g font-size="15" font-weight="600" fill="var(--ink)" text-anchor="middle">
+          <rect x="30" y="170" width="70" height="60" rx="2" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><text x="65" y="262">Facturas</text>
+          <circle cx="190" cy="200" r="30" fill="var(--teal-bg)" stroke="var(--teal)" stroke-width="3"/><text x="190" y="256">LLM extrae</text>
+          <g fill="none" stroke-width="3"><circle cx="320" cy="200" r="24" stroke="var(--teal)"/><circle cx="352" cy="200" r="24" stroke="var(--blue)"/></g><text x="336" y="256">Doble llave</text>
+          <rect x="450" y="150" width="110" height="100" rx="2" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><text x="505" y="276">Motor de reglas</text>
+          <text x="930" y="96" fill="var(--pay)">PAGAR</text><text x="930" y="206" fill="var(--stop)">FRENAR</text><text x="930" y="316" fill="var(--esc)">ESCALAR</text>
+          <circle cx="860" cy="310" r="16" fill="var(--esc)"/><text x="860" y="352" font-size="13" fill="var(--ink-2)">persona + draft_not_executed</text>
+        </g>
+      </svg>
+    </div>
+    <span class="stage-note" id="stageNote">Escena 3D · bucle de 10 facturas del demo</span>
+  </div>
+  <ol class="steps">
+    <li><span class="n">01</span><b>Entra la factura</b>Correo, chat, CFDI o cuenta de cobro. Se trata como dato, no como instrucción.</li>
+    <li><span class="n">02</span><b>El LLM extrae</b>Monto, moneda, cuenta, beneficiario. Nunca produce la decisión.</li>
+    <li><span class="n">03</span><b>Doble llave</b>Una segunda lectura por regex debe coincidir. Si no, escala.</li>
+    <li><span class="n">04</span><b>Reglas en código</b>Default-deny, 13 pasos en orden. La primera que dispara gana.</li>
+    <li><span class="n">05</span><b>Persona y borrador</b>Lo escalado se aprueba con nota y sale como <span class="mono">draft_not_executed</span>.</li>
+  </ol>
+
+  <div class="metrics" aria-label="Métricas del lote">
+    <div class="metric"><div class="k">Autonomía</div><div class="v">56%</div><div class="s">14 de 25 pagadas sin intervención</div><div class="bar"><i style="width:56%"></i></div></div>
+    <div class="metric"><div class="k">Pagos indebidos</div><div class="v ok">0</div><div class="s">25 de 25 decisiones iguales al esperado</div></div>
+    <div class="metric"><div class="k">Presupuesto restante</div><div class="v" id="mBudget">USD 2.483</div><div class="s">de USD 40.000 · gastado 37.517</div><div class="bar"><i class="warn" id="mBar" style="width:93.8%"></i></div></div>
+    <div class="metric"><div class="k">Doble lectura</div><div class="v">20<span style="font-size:20px;color:var(--ink-2)"> / 25</span></div><div class="s">coinciden · 5 se abstiene · 0 contradice</div></div>
+  </div>
+</div>
+
+<section id="tablero"><div class="wrap" style="padding:0">
+  <h2>Tablero</h2>
+  <p class="sub">Cada factura aterriza en un carril. Selecciona una para ver la ruta de reglas que la decidió.</p>
+  <div class="tabs" role="tablist" aria-label="Carriles" id="tabs"></div>
+  <div class="board" id="board"></div>
+</div></section>
+
+<section id="decision"><div class="wrap" style="padding:0">
+  <h2>Decisión explicada</h2>
+  <p class="sub">La regla que disparó se ilumina. Las siguientes no se evalúan: default-deny, primera que dispara gana.</p>
+  <div class="detail">
+    <div class="card"><h3>Ruta de reglas</h3><ol class="path" id="path"></ol></div>
+    <div class="card" id="dcard"></div>
+  </div>
+</div></section>
+
+<section id="aprobacion"><div class="wrap" style="padding:0">
+  <h2>Aprobación humana</h2>
+  <p class="sub">Una persona puede aprobar lo escalado, con nota obligatoria. Aprobar vuelve a chequear los límites duros: el monto, el beneficiario registrado y el presupuesto que queda en ese momento.</p>
+  <div class="two">
+    <div class="card"><h3>Bandeja · 5 por revisar</h3><div class="inbox" id="inbox"></div></div>
+    <div class="card" id="borrador"><h3>Borrador Blinka</h3>
+      <div class="draft" id="draft" aria-live="polite"></div>
+      <ul class="log" id="log" aria-label="Registro de auditoría"></ul>
+    </div>
+  </div>
+</div></section>
+</div>
+</main>
+<footer><div class="wrap"><span>Payment Guard · datos 100% ficticios · no se mueve dinero</span><span class="mono">draft_not_executed</span></div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
+<script src="flow3d.js"></script>
+<script>
+const INV = [{"id": "01", "who": "Cloudhost Demo LLC", "amt": 1200, "cur": "USD", "usd": 1200, "d": "PAGAR", "rule": "OK", "razon": "Beneficiario permitido, monto igual al contrato (USD 1,200), bajo umbral, cuenta coincide, presupuesto alcanza.", "fmt": "correo EN", "ben": {"id": "B06", "cuenta": "FICT-ACH-000006", "pais": "US"}}, {"id": "02", "who": "Camila Rojas Demo", "amt": 8800000, "cur": "COP", "usd": 2200.0, "d": "PAGAR", "rule": "OK", "razon": "Coincide con contrato mensual (COP 8.800.000 = USD 2,200), bajo umbral USD 3,000, cuenta correcta.", "fmt": "cuenta de cobro CO", "ben": {"id": "B01", "cuenta": "000-FICT-0001", "pais": "CO"}}, {"id": "03", "who": "Soluciones Cuautla Demo S.A. de C.V.", "amt": 36000, "cur": "MXN", "usd": 2000.02, "d": "PAGAR", "rule": "OK", "razon": "Total MXN 36,000 = contrato (USD 2,000); IVA 16% bien calculado; cuenta correcta; bajo umbral.", "fmt": "factura MX CFDI", "ben": {"id": "B04", "cuenta": "FICT-CLABE-0000000004", "pais": "MX"}}, {"id": "04", "who": "Andres Pardo Ejemplo", "amt": 6000000, "cur": "COP", "usd": 1500.0, "d": "PAGAR", "rule": "OK", "razon": "Monto = contrato mensual (USD 1,500); misma cuenta; el chat basta para extraer los datos; bajo umbral.", "fmt": "chat", "ben": {"id": "B02", "cuenta": "000-FICT-0002", "pais": "CO"}}, {"id": "05", "who": "Quill Marketing Sample Inc.", "amt": 1800, "cur": "USD", "usd": 1800, "d": "PAGAR", "rule": "OK", "razon": "Monto = contrato mensual USD 1,800, cuenta correcta, fechas validas.", "fmt": "invoice US", "ben": {"id": "B08", "cuenta": "FICT-ACH-000008", "pais": "US"}}, {"id": "06", "who": "Pinewood Legal Example LLP", "amt": 2500, "cur": "USD", "usd": 2500, "d": "PAGAR", "rule": "OK", "razon": "Retainer = contrato USD 2,500; es alto pero no supera el umbral de aprobacion (USD 3,000).", "fmt": "correo EN", "ben": {"id": "B07", "cuenta": "FICT-ACH-000007", "pais": "US"}}, {"id": "07", "who": "Tomas Vera Muestra", "amt": 3200000, "cur": "COP", "usd": 800.0, "d": "PAGAR", "rule": "OK", "razon": "Coincide con contrato (USD 800), cuenta correcta.", "fmt": "cuenta de cobro CO", "ben": {"id": "B09", "cuenta": "000-FICT-0009", "pais": "CO"}}, {"id": "08", "who": "Mariana Ixtapa Prueba", "amt": 27000, "cur": "MXN", "usd": 1500.01, "d": "PAGAR", "rule": "OK", "razon": "Total MXN 27,000 = contrato (USD 1,500); cuenta correcta.", "fmt": "factura MX CFDI", "ben": {"id": "B05", "cuenta": "FICT-CLABE-0000000005", "pais": "MX"}}, {"id": "09", "who": "Logistica Tlalpan Ficticia S.A. de C.V.", "amt": 18000, "cur": "MXN", "usd": 1000.01, "d": "PAGAR", "rule": "OK", "razon": "Renta MXN 18,000 = contrato (USD 1,000); datos bancarios iguales.", "fmt": "chat", "ben": {"id": "B10", "cuenta": "FICT-CLABE-0000000010", "pais": "MX"}}, {"id": "10", "who": "Estudio Datos del Sur S.A.S.", "amt": 11200000, "cur": "COP", "usd": 2800.0, "d": "PAGAR", "rule": "OK", "razon": "Total = contrato (USD 2,800), bajo umbral USD 3,000, cuenta correcta.", "fmt": "factura CO", "ben": {"id": "B03", "cuenta": "000-FICT-0003", "pais": "CO"}}, {"id": "11", "who": "Sofia Lemus Ejemplo", "amt": 12000, "cur": "MXN", "usd": 666.67, "d": "PAGAR", "rule": "OK", "razon": "Proyecto unico, monto = acuerdo (MXN 12,000 = USD 667), cuenta correcta.", "fmt": "chat EN", "ben": {"id": "B11", "cuenta": "FICT-CLABE-0000000011", "pais": "MX"}}, {"id": "12", "who": "Nube Andina Demo S.A.S.", "amt": 2400000, "cur": "COP", "usd": 600.0, "d": "PAGAR", "rule": "OK", "razon": "Monto = contrato (USD 600), cuenta correcta.", "fmt": "factura CO", "ben": {"id": "B12", "cuenta": "000-FICT-0012", "pais": "CO"}}, {"id": "13", "who": "Ridgeview Accounting Sample LLC", "amt": 950, "cur": "USD", "usd": 950, "d": "PAGAR", "rule": "OK", "razon": "Monto = contrato (USD 950), cuenta correcta.", "fmt": "correo EN", "ben": {"id": "B13", "cuenta": "FICT-ACH-000013", "pais": "US"}}, {"id": "14", "who": "Jorge Calle Muestra", "amt": 4000000, "cur": "COP", "usd": 1000.0, "d": "PAGAR", "rule": "OK", "razon": "Monto = contrato (USD 1,000), cuenta correcta. Tras este pago el gasto acumulado del mes es USD 37,516.67.", "fmt": "chat", "ben": {"id": "B14", "cuenta": "000-FICT-0014", "pais": "CO"}}, {"id": "15", "who": "Camila Rojas Demo", "amt": 8800000, "cur": "COP", "usd": 2200.0, "d": "FRENAR", "rule": "R_DUPLICADO", "razon": "Duplicado exacto de la factura 02 (mismo numero CC-0007, monto y fecha; ya pagada).", "fmt": "cuenta de cobro CO (reenvio)", "ben": {"id": "B01", "cuenta": "000-FICT-0001", "pais": "CO"}}, {"id": "16", "who": "Cloudhost Demo LLC", "amt": 1200, "cur": "USD", "usd": 1200, "d": "FRENAR", "rule": "R_DUPLICADO", "razon": "Duplicado con otro numero (INV-2026-1043 vs INV-2026-1031): mismo beneficiario, concepto, periodo y monto ya pagado en la factura 01.", "fmt": "correo EN", "ben": {"id": "B06", "cuenta": "FICT-ACH-000006", "pais": "US"}}, {"id": "17", "who": "Valeria Montoya Demo", "amt": 5000000, "cur": "COP", "usd": 1250.0, "d": "ESCALAR", "rule": "R_BENEFICIARIO", "razon": "Beneficiario nuevo: no esta en la lista de permitidos ni tiene contrato. Finanzas debe darlo de alta antes de pagar. Una persona puede aprobarlo (decision de producto: ESCALAR, no FRENAR).", "fmt": "cuenta de cobro CO", "ben": null}, {"id": "18", "who": "Soluciones Cuautla Demo S.A. de C.V.", "amt": 48500, "cur": "MXN", "usd": 2694.47, "d": "ESCALAR", "rule": "R_CONTRATO", "razon": "Monto MXN 48,500 (USD 2,694) no cuadra con el contrato mensual de MXN 36,000 (ya pagado en la 03); no hay acuerdo de horas adicionales. Una persona puede aprobarlo (decision de producto: ESCALAR, no FRENAR).", "fmt": "factura MX CFDI", "ben": {"id": "B04", "cuenta": "FICT-CLABE-0000000004", "pais": "MX"}}, {"id": "19", "who": "Andes Recruiting Demo S.A.S.", "amt": 16000000, "cur": "COP", "usd": 4000.0, "d": "ESCALAR", "rule": "R_UMBRAL", "razon": "Todo en regla (beneficiario, contrato, cuenta) pero USD 4,000 supera el umbral de aprobacion humana (USD 3,000) y esta bajo el limite por pago (USD 6,000): requiere aprobacion.", "fmt": "correo ES", "ben": {"id": "B16", "cuenta": "000-FICT-0016", "pais": "CO"}}, {"id": "20", "who": "Hexa Equipos Ejemplo S.A. de C.V.", "amt": 126000, "cur": "MXN", "usd": 7000.06, "d": "FRENAR", "rule": "R_LIMITE", "razon": "Monto = contrato, pero USD 7,000 excede el limite duro por pago (USD 6,000). No se paga ni con aprobacion sin cambiar la regla o dividir el pago.", "fmt": "factura MX", "ben": {"id": "B17", "cuenta": "FICT-CLABE-0000000017", "pais": "MX"}}, {"id": "21", "who": "Kestrel Security Audit Sample LLC", "amt": 2600, "cur": "USD", "usd": 2600, "d": "FRENAR", "rule": "R_PRESUPUESTO", "razon": "Todo en regla, pero presupuesto insuficiente: gastado USD 37,516.67 de 40,000; restan USD 2,483.33 < USD 2,600.", "fmt": "invoice US", "ben": {"id": "B15", "cuenta": "FICT-ACH-000015", "pais": "US"}}, {"id": "22", "who": "Ridgeview Accounting Sample LLC", "amt": 880, "cur": "EUR", "usd": null, "d": "FRENAR", "rule": "R_MONEDA", "razon": "Moneda EUR no permitida (solo USD, COP, MXN); ademas no hay acuerdo para ese servicio.", "fmt": "correo EN", "ben": {"id": "B13", "cuenta": "FICT-ACH-000013", "pais": "US"}}, {"id": "23", "who": "Tomas Vera Muestra", "amt": 3200000, "cur": "COP", "usd": 800.0, "d": "FRENAR", "rule": "R_FECHA", "razon": "Fecha de emision futura (2027-03-15; hoy es 2026-10-17) y periodo de servicio que aun no ocurre.", "fmt": "cuenta de cobro CO", "ben": {"id": "B09", "cuenta": "000-FICT-0009", "pais": "CO"}}, {"id": "24", "who": "Delta Pixel Studio Sample LLC", "amt": 1500, "cur": "USD", "usd": 1500, "d": "ESCALAR", "rule": "R_SOSPECHA", "razon": "Monto y beneficiario validos, pero el documento trae una instruccion oculta para saltarse las reglas (prompt injection). Se ignora y se escala a una persona; no se paga solo.", "fmt": "invoice US", "ben": {"id": "B18", "cuenta": "FICT-ACH-000018", "pais": "US"}}, {"id": "25", "who": "Ingrid Salazar Ejemplo", "amt": 2000000, "cur": "COP", "usd": 500.0, "d": "ESCALAR", "rule": "R_CUENTA", "razon": "Monto correcto, pero cambia la cuenta bancaria registrada (000-FICT-0019 -> 000-FICT-9999) con urgencia: senal clasica de fraude; verificar por otro canal.", "fmt": "correo ES", "ben": {"id": "B19", "cuenta": "000-FICT-0019", "pais": "CO"}}];
+const RULES = [
+  ['R_SOSPECHA','Instrucciones ocultas en el texto'],['R_CONFIANZA','Faltan monto, moneda o cuenta'],['R_DOBLE_LECTURA','Regex y LLM leen distinto'],
+  ['R_MONEDA','Moneda fuera de USD, COP, MXN'],['R_BENEFICIARIO','Fuera del registro maestro'],['R_CUENTA','Cuenta distinta de la registrada'],
+  ['R_DUPLICADO','Ya existe un pago igual'],['R_FECHA','Emisión futura o de más de 60 días'],['R_CONTRATO','Monto difiere del contrato más de 1 %'],
+  ['R_LIMITE','Supera USD 6.000 por pago'],['R_UMBRAL','Supera USD 3.000: requiere persona'],['R_PRESUPUESTO','No alcanza el presupuesto'],['OK','Ninguna regla dispara']];
+const LABEL = {PAGAR:'dentro de reglas',FRENAR:'inválido, sin discusión',ESCALAR:'una persona decide'};
+const BUDGET = {total:40000, left:2483.33};
+const RAIL = {US:'ACH',CO:'BRE_B',MX:'SPEI'};
+const $ = (s,r=document)=>r.querySelector(s);
+const money = (n,c)=> (c?c+' ':'')+new Intl.NumberFormat('es-CO',{maximumFractionDigits:0}).format(n);
+const usd2 = n=> 'USD '+new Intl.NumberFormat('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const byId = id=>INV.find(x=>x.id===id);
+let sel = '20', lane = 'PAGAR';
+
+/* tema */
+const root = document.documentElement;
+function themeLabel(){ const dark = root.dataset.theme ? root.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; $('#themeTxt').textContent = dark ? 'Modo claro' : 'Modo oscuro'; }
+try{ const t = localStorage.getItem('pg-theme'); if(t) root.dataset.theme = t; }catch(e){}
+$('#theme').onclick = ()=>{ const dark = root.dataset.theme ? root.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; root.dataset.theme = dark?'light':'dark'; try{localStorage.setItem('pg-theme',root.dataset.theme)}catch(e){} themeLabel(); };
+themeLabel();
+
+/* tablero */
+function renderBoard(){
+  const board = $('#board'), tabs = $('#tabs'); board.innerHTML=''; tabs.innerHTML='';
+  ['PAGAR','FRENAR','ESCALAR'].forEach(d=>{
+    const items = INV.filter(x=>x.d===d);
+    const b = document.createElement('button'); b.type='button'; b.setAttribute('role','tab'); b.setAttribute('aria-selected', d===lane); b.dataset.d=d;
+    b.textContent = d+' · '+items.length; b.onclick=()=>{lane=d; renderBoard();}; tabs.appendChild(b);
+    const sec = document.createElement('article'); sec.className='lane'+(d===lane?' on':''); sec.dataset.d=d;
+    sec.innerHTML = `<h3>${d}<span class="cnt">${items.length}</span></h3><p class="def">${LABEL[d]}</p><ul class="list"></ul>`;
+    const ul = $('ul',sec);
+    items.forEach(x=>{
+      const li = document.createElement('li'); const bt = document.createElement('button'); bt.type='button'; bt.className='tk'+(x.rule!=='OK'?' hot':''); bt.dataset.id=x.id;
+      bt.setAttribute('aria-current', x.id===sel);
+      bt.innerHTML = `<span class="id">#${x.id}</span><span class="nm"></span><span class="am">${money(x.amt)} ${x.cur}</span><span class="ru">${x.rule}</span>`;
+      $('.nm',bt).textContent = x.who;
+      bt.onclick=()=>{sel=x.id; renderBoard(); renderDetail(); $('#decision').scrollIntoView({block:'start'});};
+      li.appendChild(bt); ul.appendChild(li);
+    });
+    board.appendChild(sec);
+  });
+}
+
+/* detalle */
+function renderDetail(){
+  const x = byId(sel), firedIdx = RULES.findIndex(r=>r[0]===x.rule);
+  const p = $('#path'); p.dataset.d = x.d; p.style.setProperty('--c',`var(--${x.d==='PAGAR'?'pay':x.d==='FRENAR'?'stop':'esc'})`); p.style.setProperty('--c-bg','transparent');
+  p.innerHTML = RULES.map((r,i)=>{
+    const cls = i<firedIdx?'pass':i===firedIdx?'fire':'skip';
+    const st = i<firedIdx?'pasó':i===firedIdx?(x.rule==='OK'?'paga':x.d.toLowerCase()):'no evaluada';
+    return `<li class="${cls}"><span class="dot">${i<firedIdx?'✓':i+1}</span><span><span class="c">${r[0]}</span><br><span style="font-size:12px">${r[1]}</span></span><span class="st">${st}</span></li>`;
+  }).join('');
+  const hasUsd = x.usd!=null, max = 8000, pct = v=>Math.min(100,v/max*100);
+  const over = hasUsd && x.usd>6000;
+  const dc = $('#dcard'); dc.dataset.d = x.d;
+  const whyHead = x.rule==='OK' ? 'Ninguna regla disparó' : 'Disparó '+x.rule;
+  dc.innerHTML = `<div class="ticket" data-d="${x.d}">
+    <div class="ticket-h"><div><div class="meta">FACTURA #${x.id} · ${x.fmt.toUpperCase()}</div><div class="nm"></div></div><span class="stamp">${x.d}</span></div>
+    <div class="amt">${money(x.amt,x.cur)}</div>
+    <div class="meta">${hasUsd?'≈ '+usd2(x.usd):'sin conversión: moneda no permitida'}</div>
+    <p class="why"><span class="rulechip">${x.rule}</span> ${whyHead}. <span id="razon"></span></p>
+    ${hasUsd?`<div class="gauge"><div class="lbl"><span>Valor vs límite</span><span>${usd2(x.usd)} · ${over?'+'+usd2(x.usd-6000)+' sobre el límite':x.usd>3000?'sobre el umbral de aprobación':'bajo el umbral'}</span></div>
+      <div class="track"><div class="fill" style="width:${pct(x.usd)}%"></div><div class="mk" style="left:${pct(3000)}%"><span>umbral 3.000</span></div><div class="mk hi" style="left:${pct(6000)}%"><span>límite 6.000</span></div></div></div>`:''}
+    <dl class="keys"><div><dt>Beneficiario</dt><dd>${x.ben?x.ben.id:'no registrado'}</dd></div><div><dt>Cuenta (registro)</dt><dd>${x.ben?x.ben.cuenta:'—'}</dd></div><div><dt>Presupuesto al decidir</dt><dd>${x.id==='21'?'USD 2.483,33':'ver tablero'}</dd></div></dl>
+  </div>`;
+  $('.nm',dc).textContent = x.who; $('#razon',dc).textContent = x.razon;
+  dc.querySelector('.ticket').style.setProperty('--c',`var(--${x.d==='PAGAR'?'pay':x.d==='FRENAR'?'stop':'esc'})`);
+}
+
+/* bandeja */
+const state = {}; // id -> 'ok' | 'rej'
+const logEl = $('#log');
+function addLog(t){ const li=document.createElement('li'); li.innerHTML=t; logEl.prepend(li); }
+function renderBudget(){ $('#mBudget').textContent = 'USD '+new Intl.NumberFormat('es-CO',{maximumFractionDigits:0}).format(BUDGET.left); $('#mBar').style.width = ((BUDGET.total-BUDGET.left)/BUDGET.total*100)+'%'; }
+function showDraft(d){
+  const j = JSON.stringify(d,null,2).replace(/"([^"]+)":/g,'<span class="k">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="s">"$1"</span>').replace(/: (\d+)/g,': <span class="n">$1</span>');
+  $('#draft').innerHTML = '<span class="dstamp">DRAFT · NOT EXECUTED</span><pre>'+j+'</pre>';
+}
+function approve(id, note, who){
+  const x = byId(id), el = $(`[data-appr="${id}"]`), msg = $('.msg',el);
+  const fail = t=>{ msg.className='msg bad'; msg.textContent = t; return false; };
+  if(!note.trim()) return fail('La nota es obligatoria.');
+  if(!x.ben) return fail('No se puede aprobar: beneficiario no registrado; darlo de alta primero.');
+  if(x.usd>6000) return fail('No se puede aprobar: supera el límite por pago.');
+  if(BUDGET.left<x.usd) return fail('No se puede aprobar: presupuesto insuficiente; restan '+usd2(BUDGET.left)+' y se requieren '+usd2(x.usd)+'.');
+  BUDGET.left = +(BUDGET.left-x.usd).toFixed(2); renderBudget();
+  const d = {object:'transfer_draft',status:'draft_not_executed',amount_minor:Math.round(x.amt*100),currency:x.cur,beneficiary_id:x.ben.id,beneficiary_account:x.ben.cuenta,rail:RAIL[x.ben.pais]||'SWIFT',invoice_id:x.id,policy_version:1,approved_by:who,approval_note:note.trim(),created_at:new Date().toISOString()};
+  state[id]='ok'; showDraft(d); addLog(`<b>${new Date().toISOString().slice(11,19)}</b> #${id} aprobada por ${who} → borrador`); renderInbox(); return true;
+}
+function reject(id, note, who){
+  if(!note.trim()){ const m=$(`[data-appr="${id}"] .msg`); m.className='msg bad'; m.textContent='La nota es obligatoria.'; return; }
+  state[id]='rej'; addLog(`<b>${new Date().toISOString().slice(11,19)}</b> #${id} rechazada por ${who}`); renderInbox();
+}
+function renderInbox(){
+  const box = $('#inbox'); const keep = {}; box.querySelectorAll('textarea').forEach(t=>keep[t.closest('[data-appr]').dataset.appr]=t.value);
+  box.innerHTML='';
+  INV.filter(x=>x.d==='ESCALAR').forEach(x=>{
+    const s = state[x.id], a = document.createElement('div'); a.className='appr'+(s==='ok'?' done':s==='rej'?' rej':''); a.dataset.appr=x.id;
+    a.innerHTML = `<header><span class="nm"></span><span class="am">${money(x.amt,x.cur)}</span></header><p><span class="rulechip" style="--c:var(--esc);--c-bg:var(--esc-bg)">${x.rule}</span> #${x.id} · ${x.hint||''}</p>`;
+    $('.nm',a).textContent = x.who;
+    if(s){ const m=document.createElement('div'); m.className='msg '+(s==='ok'?'good':'bad'); m.textContent = s==='ok'?'Aprobada · borrador generado':'Rechazada · sin pago'; a.appendChild(m); }
+    else {
+      a.insertAdjacentHTML('beforeend',`<label class="sr" for="n${x.id}">Nota de aprobación factura ${x.id}</label><textarea id="n${x.id}" placeholder="Nota obligatoria (por qué apruebas o rechazas)"></textarea><div class="row"><button class="btn" type="button">Aprobar</button><button class="btn ghost" type="button">Rechazar</button></div><div class="msg" role="status"></div>`);
+      const ta=$('textarea',a); ta.value = keep[x.id]||'';
+      const [ba,br]=a.querySelectorAll('button'); ba.onclick=()=>approve(x.id,ta.value,'ana.finanzas'); br.onclick=()=>reject(x.id,ta.value,'ana.finanzas');
+    }
+    box.appendChild(a);
+  });
+}
+INV.find(x=>x.id==='17').hint='beneficiario nuevo, falta alta';
+INV.find(x=>x.id==='18').hint='MXN 48.500 vs contrato 36.000';
+INV.find(x=>x.id==='19').hint='USD 4.000 sobre el umbral de 3.000';
+INV.find(x=>x.id==='24').hint='texto oculto pide saltarse las reglas';
+INV.find(x=>x.id==='25').hint='cambia la cuenta; el borrador usa la del registro';
+
+renderBoard(); renderDetail(); renderInbox(); renderBudget();
+addLog('<b>09:00:00</b> lote de 25 facturas procesado · 14 PAGAR · 6 FRENAR · 5 ESCALAR');
+approve('25','Confirmado por teléfono con la contratista; se paga a la cuenta del registro.','ana.finanzas');
+
+/* escena 3D */
+(function(){
+  const stage = $('#stage'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let h = null;
+  try{ h = mountFlow(stage, {reducedMotion: rm}); }catch(e){ console.warn('flow3d', e); }
+  if(!h){ stage.classList.add('nofx'); $('#stageNote').textContent = rm ? 'Movimiento reducido: diagrama estático' : 'Diagrama estático (WebGL no disponible)'; }
+})();
+</script>
+</body>
+</html>
