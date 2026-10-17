@@ -45,7 +45,13 @@ def pick(l):
 
 
 def person():
-    return f"{pick(FIRST)} {pick(LAST)} {pick(LAST)} {pick(TAIL)}"
+    # v2: no siempre lleva sufijo ni segundo apellido (el modelo v1 aprendió a inventarlos)
+    n = f"{pick(FIRST)} {pick(LAST)}"
+    if R.random() < 0.5:
+        n += f" {pick(LAST)}"
+    if R.random() < 0.5:
+        n += f" {pick(TAIL)}"
+    return n
 
 
 def co_company():
@@ -113,10 +119,35 @@ def t_mail_en():
     n, d, no, acct, a, c = us_company(), rdate(), inv_no(), acct_us(), rusd(), pick(["USD", "USD", "EUR"])
     s, m = pick(SERV_EN), pick(MONTHS_EN)
     concept = f"{m} 2026 {s}"
+    if R.random() < 0.3:  # v2: correo sin fecha de emisión (solo vencimiento) -> issue_date null
+        hdr, dd = "", None
+    else:
+        hdr, dd = f"Date: {hdr_date(d)}\n", d
     txt = (f"From: billing@{n.split()[0].lower()}.example\nTo: finanzas@lumbre-analytics.example\nSubject: Invoice {no} - {concept}\n"
-           f"Date: {hdr_date(d)}\n\nHi team,\nPlease find our invoice for {concept}.\nInvoice: {no} | Amount: {c} {us(a)} | Due: {(d + timedelta(days=25)).isoformat()}\n"
+           f"{hdr}\nHi team,\nPlease find our invoice for {concept}.\nInvoice: {no} | Amount: {c} {us(a)} | Due: {(d + timedelta(days=25)).isoformat()}\n"
            f"Pay to: {n} - {pick(BANKS_US)} (fictitious), acct {acct}\nThanks, {n.split()[0]} billing (sample data)")
-    return txt, g(n, f"{a:.2f}", c, d, no, acct, concept)
+    return txt, g(n, f"{a:.2f}", c, dd, no, acct, concept)
+
+
+def t_mail_min():
+    """v2: correo corto donde el emisor solo está en la dirección o en una firma; sin firma -> nombre null."""
+    en = R.random() < 0.5
+    n, d, no = (us_company() if en else co_company()), rdate(), inv_no(pick(["RV", "INV", "AR", "PL"]))
+    dom = n.split()[0].lower() + pick(["", "-sample", "-demo"])
+    acct = acct_us() if en else acct_co()
+    a = rusd()
+    sig = R.random() < 0.5
+    who = pick([n, person()]) if sig else None
+    hdr = f"Date: {hdr_date(d)}\n" if R.random() < 0.6 else ""
+    if en:
+        s = f"{pick(MONTHS_EN)} {pick(SERV_EN)}"
+        body = f"Hello, {s}: USD {us(a)}, due {(d + timedelta(days=15)).isoformat()}. {pick(BANKS_US)} {acct}." + (f" - {who}" if sig else "")
+        txt = f"From: {pick(['billing', 'accounts', 'bookkeeping'])}@{dom}.example\nSubject: Invoice {no} ({s})\n{hdr}{body}"
+    else:
+        s = f"{pick(SERV_ES)} {pick(MONTHS_ES)}"
+        body = f"Hola, mi cuenta de cobro de {s}: USD {us(a)}. {pick(BANKS_CO)} (ficticio) {acct}." + (f" Saludos, {who}" if sig else " Gracias.")
+        txt = f"From: {pick(['cobros', 'facturacion', 'hola'])}@{dom}.example\nSubject: Cuenta de cobro {no}\n{hdr}{body}"
+    return txt, g(who, f"{a:.2f}", "USD", d if hdr else None, no, acct, s)
 
 
 def t_mail_es():
@@ -167,7 +198,8 @@ def t_chat():
         bank = f"Misma cuenta {pick(BANKS_CO)} de siempre ({acct})"
         date_s, dd = d.isoformat(), d
         head = f"[Chat {plat}] {date_s} {hhmm}"
-        body = f"{n.split()[0]} {n.split()[1]}: Hola! Te paso mi cobro de {pick(MONTHS_ES)} por {s}: {msg_amt}. {bank}. Gracias!"
+        n = f"{n.split()[0]} {n.split()[1]}"  # v2: la etiqueta es SOLO lo que aparece en el texto
+        body = f"{n}: Hola! Te paso mi cobro de {pick(MONTHS_ES)} por {s}: {msg_amt}. {bank}. Gracias!"
     elif kind == 1:
         a = R.randint(5, 90) * 1000
         cur, amt, acct = "MXN", f"{a:.2f}", acct_mx()
@@ -198,7 +230,7 @@ def t_mx_txt():
     return txt, g(n, f"{a:.2f}", "MXN", d, no, acct, s)
 
 
-TEMPLATES = [t_mail_en, t_mail_es, t_cc, t_cfdi, t_chat, t_us, t_mx_txt]
+TEMPLATES = [t_mail_en, t_mail_es, t_cc, t_cfdi, t_chat, t_us, t_mx_txt, t_mail_min, t_chat]
 
 
 def eval_values():
@@ -214,7 +246,7 @@ def main():
     while len(out) < N:
         t = TEMPLATES[len(out) % len(TEMPLATES)]
         txt, gold = t()
-        if gold["bank_account"] in ev or gold["beneficiary_name"] in ev:
+        if gold["bank_account"] in ev or (gold["beneficiary_name"] and gold["beneficiary_name"] in ev):
             continue
         if R.random() < 0.05:
             txt += "\n\n" + pick(INJ)
