@@ -1,5 +1,8 @@
 # Payment Guard
 
+**Demo en vivo:** https://p1p2gamer26.pythonanywhere.com/
+**Repo:** https://github.com/P1p2gamer26/payment-guard
+
 Agente que lee facturas de contratistas en LatAm y decide **PAGAR / FRENAR / ESCALAR** con reglas en código, explica cada decisión y pide aprobación humana cuando algo se sale de las reglas. Hackathon 30X, reto Blinka.
 
 - **Problema:** las finanzas de empresas de EE. UU. con contratistas en LatAm revisan a mano decenas de facturas al mes. Nadie delega el pago a un agente porque la barrera es la confianza: no puede probar que respeta las reglas.
@@ -8,20 +11,19 @@ Agente que lee facturas de contratistas en LatAm y decide **PAGAR / FRENAR / ESC
 
 ## Demo
 
-- App: `URL_DEMO`
+- App: https://p1p2gamer26.pythonanywhere.com/
 - Video (3 min): `URL_VIDEO`
 
-## Resultados verificados
+## Resultados
 
-| Medida | Resultado |
+| Qué | Resultado |
 |---|---|
-| Facturas del set | 25 (14 normales + 11 trampa) |
-| Decisiones correctas vs. `data/esperado.json` | **25 / 25** con el LLM real grabado (sonnet-4.6 vía 9Router) |
-| Pagos indebidos | **0** |
-| Verificador independiente | `allowed_to_pay` re-chequea los límites duros sin usar el motor |
-| Doble lectura (regex vs. LLM) | coincide en 20/25, se abstiene en 5, **nunca contradice** |
+| Golden (25 facturas) | **25 / 25** decisiones esperadas (14 PAGAR / 6 FRENAR / 5 ESCALAR), **0** pagos indebidos |
+| Arena (415 ataques) — política v1 | **170** pagos indebidos (fraccionamiento 39, cuenta 17, inyección 7, unicode 62, duplicado 40, fecha 5) |
+| Arena (415 ataques) — política v2 | **0** pagos indebidos |
+| Tests | **51** (pytest) |
 
-Se reproduce con `./verify.sh` (modo `replay`, sin red).
+Se reproduce con `./verify.sh` (modo `replay`, sin red). El verificador independiente `allowed_to_pay` re-chequea los límites duros sin usar el motor. Doble lectura (regex vs. LLM): coincide en 20/25, se abstiene en 5, **nunca contradice**.
 
 ## Cómo funciona
 
@@ -75,14 +77,27 @@ Criterio: **FRENAR** = inválido sin discusión. **ESCALAR** = una persona puede
 | 24 | Prompt injection oculta | ESCALAR | `R_SOSPECHA` |
 | 25 | Cambio de cuenta bancaria con urgencia | ESCALAR | `R_CUENTA` |
 
-## Seguridad
+## Controles de seguridad
 
-- **Prompt injection:** el texto de la factura es dato. La detección está en código (`R_SOSPECHA`), no en el LLM.
-- **Cuenta y beneficiario salen del registro maestro** (`data/reglas.json`), nunca de la factura. Cambio de cuenta -> ESCALAR.
-- **El LLM nunca produce la decisión:** solo se aceptan 8 campos de extracción; un campo `decision` se descarta.
-- **Default-deny:** extracción dudosa, respuesta malformada, casete ausente o cualquier excepción -> ESCALAR, jamás PAGAR.
+- **Default-deny:** el código decide, el LLM solo extrae. Extracción dudosa, casete ausente o cualquier excepción -> ESCALAR, jamás PAGAR.
+- **Doble llave LLM vs. regex:** segunda lectura de monto y moneda por regex; si difieren del LLM -> ESCALAR.
+- **Cuenta y beneficiario siempre del registro maestro** (`data/reglas.json`), nunca de la factura. Cambio de cuenta -> ESCALAR.
+- **Re-chequeo de límites al aprobar:** `allowed_to_pay` re-valida los límites duros en la aprobación humana (idea de imprest); nadie aprueba lo que la regla prohíbe.
+- **Recibo HMAC de un solo uso con vencimiento:** el guardián verifica firma, vencimiento y nonce no usado antes de emitir el borrador.
+- **Separación de funciones:** quien solicita (`Invoice.requested_by`) no puede aprobar.
+- **Inyección detectada en código, nunca obedecida:** el texto de la factura es dato (`R_SOSPECHA`); un campo `decision` del LLM se descarta.
 - **Montos con `Decimal`**, nunca `float`.
-- **Aprobar re-chequea** los límites duros: una persona no puede aprobar lo que la regla prohíbe.
+
+## Modelo propio (extractor)
+
+- **Qwen2.5 afinado con LoRA (Unsloth)** en Colab T4 gratis sobre **1.290 ejemplos** (900 sintéticos LatAm + 390 públicos MIT, ver `ml/DATASETS.md`). Las **25 facturas del demo NUNCA se usan para entrenar** (solo evaluación).
+- **0.5B:** 162 pasos en ~6 min, loss final **0.042**. **1.5B:** resultados pendientes.
+- Servido en **CPU con llama.cpp** en un Hugging Face Space; la demo pública usa **lecturas grabadas (replay)** para no depender de red.
+- Cómo reproducir: `ml/gen_synthetic.py`, `ml/prep_public.py`, `ml/finetune_colab.ipynb`, `ml/eval.py`.
+
+## Qué se descartó y por qué
+
+Entradas PDF/foto/XML, notificaciones por Telegram/correo y observabilidad (métricas, trazas): no cambian la decisión ni se ven en un demo de 3 min. El set de demo es texto, chat y CFDI JSON; el valor está en el motor de reglas, no en el pipeline de ingestión.
 
 ## Correr local
 
